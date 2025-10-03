@@ -4,8 +4,11 @@ import { Apartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAppDispatch } from "@/store/hooks";
+import { setFavorites } from "@/store/favoritesSlice";
 
 const Home = () => {
+  const dispatch = useAppDispatch();
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -13,7 +16,28 @@ const Home = () => {
 
   useEffect(() => {
     fetchApartments();
+    fetchFavorites();
   }, []);
+
+  const fetchFavorites = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("apartment_id")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const favoriteIds = data?.map((fav) => fav.apartment_id) || [];
+      dispatch(setFavorites(favoriteIds));
+    } catch (error: any) {
+      console.error("Error fetching favorites:", error);
+    }
+  };
 
   const fetchApartments = async () => {
     try {

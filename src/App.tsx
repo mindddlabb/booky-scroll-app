@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Bookings from "./pages/Bookings";
 import Inbox from "./pages/Inbox";
 import Profile from "./pages/Profile";
+import ApartmentDetail from "./pages/ApartmentDetail";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 
@@ -64,9 +65,10 @@ const AppRoutes = () => {
         <Route path="/register" element={isAuthenticated ? <Navigate to="/home" replace /> : <Register />} />
         
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-        <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+            <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>

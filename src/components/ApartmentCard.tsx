@@ -5,6 +5,9 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
+import QuickInfoModal from "./QuickInfoModal";
 import {
   Carousel,
   CarouselContent,
@@ -12,12 +15,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 
 interface ApartmentCardProps {
   apartment: Apartment;
@@ -25,7 +22,9 @@ interface ApartmentCardProps {
 }
 
 const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const dispatch = useAppDispatch();
+  const favoriteIds = useAppSelector((state) => state.favorites.apartmentIds);
+  const isFavorite = favoriteIds.includes(apartment.id);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -51,6 +50,7 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -59,6 +59,14 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
         return;
       }
 
+      // Optimistic update
+      if (isFavorite) {
+        dispatch(removeFavorite(apartment.id));
+      } else {
+        dispatch(addFavorite(apartment.id));
+      }
+
+      // Update database
       if (isFavorite) {
         const { error } = await supabase
           .from("favorites")
@@ -66,8 +74,11 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
           .eq("user_id", user.id)
           .eq("apartment_id", apartment.id);
 
-        if (error) throw error;
-        setIsFavorite(false);
+        if (error) {
+          // Revert on error
+          dispatch(addFavorite(apartment.id));
+          throw error;
+        }
         toast.success("Removed from favorites");
       } else {
         const { error } = await supabase
@@ -77,8 +88,11 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
             apartment_id: apartment.id,
           });
 
-        if (error) throw error;
-        setIsFavorite(true);
+        if (error) {
+          // Revert on error
+          dispatch(removeFavorite(apartment.id));
+          throw error;
+        }
         toast.success("Added to favorites");
       }
     } catch (error: any) {
@@ -248,72 +262,11 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
       </div>
 
       {/* Quick Info Bottom Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="text-2xl">{apartment.name}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 space-y-6">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="w-5 h-5" />
-              <span>{apartment.location.address}, {apartment.location.city}</span>
-            </div>
-
-            {apartment.averageRating > 0 && (
-              <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                <span className="font-semibold">{apartment.averageRating.toFixed(1)}</span>
-                <span className="text-muted-foreground">
-                  ({apartment.totalReviews} reviews)
-                </span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-4 py-4 border-y">
-              <div>
-                <div className="text-2xl font-bold">{apartment.bedrooms}</div>
-                <div className="text-sm text-muted-foreground">Bedrooms</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{apartment.bathrooms}</div>
-                <div className="text-sm text-muted-foreground">Bathrooms</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold">${apartment.pricePerNight}</div>
-                <div className="text-sm text-muted-foreground">per night</div>
-              </div>
-            </div>
-
-            {apartment.description && (
-              <div>
-                <h3 className="font-semibold mb-2">About</h3>
-                <p className="text-muted-foreground">{apartment.description}</p>
-              </div>
-            )}
-
-            {apartment.amenities.length > 0 && (
-              <div>
-                <h3 className="font-semibold mb-3">Amenities</h3>
-                <div className="flex flex-wrap gap-2">
-                  {apartment.amenities.map((amenity, i) => (
-                    <Badge key={i} variant="secondary">
-                      {amenity}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <Button
-              size="lg"
-              className="w-full bg-gradient-to-r from-secondary to-accent hover:opacity-90 font-semibold"
-              onClick={handleBook}
-            >
-              Book Now - ${apartment.pricePerNight}/night
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <QuickInfoModal
+        apartment={apartment}
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+      />
     </>
   );
 };
