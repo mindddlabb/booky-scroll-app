@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
 import QuickInfoModal from "./QuickInfoModal";
+import { useNavigate } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -22,6 +23,7 @@ interface ApartmentCardProps {
 }
 
 const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const favoriteIds = useAppSelector((state) => state.favorites.apartmentIds);
   const isFavorite = favoriteIds.includes(apartment.id);
@@ -102,7 +104,7 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
 
   const handleBook = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.success("Opening booking flow...");
+    navigate(`/apartment/${apartment.id}`);
   };
 
   const toggleMute = (e: React.MouseEvent) => {
