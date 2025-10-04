@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Apartment } from "@/types";
-import { Loader2, ArrowLeft, MapPin, Star, Bed, Bath, Heart } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Star, Bed, Bath, Heart, Wifi, Wind, Utensils, Car, Tv, WashingMachine, MessageCircle, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Calendar } from "@/components/ui/calendar";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
+import { differenceInDays } from "date-fns";
 import {
   Carousel,
   CarouselContent,
@@ -15,6 +20,16 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import type { CarouselApi } from "@/components/ui/carousel";
+
+const amenityIcons: Record<string, any> = {
+  WiFi: Wifi,
+  "Air Conditioning": Wind,
+  Kitchen: Utensils,
+  Parking: Car,
+  TV: Tv,
+  Washer: WashingMachine,
+};
 
 const ApartmentDetail = () => {
   const { id } = useParams();
@@ -22,13 +37,35 @@ const ApartmentDetail = () => {
   const dispatch = useAppDispatch();
   const favoriteIds = useAppSelector((state) => state.favorites.apartmentIds);
   const [apartment, setApartment] = useState<Apartment | null>(null);
+  const [listerProfile, setListerProfile] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkInDate, setCheckInDate] = useState<Date | undefined>();
+  const [checkOutDate, setCheckOutDate] = useState<Date | undefined>();
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const isFavorite = id ? favoriteIds.includes(id) : false;
 
+  const totalNights = checkInDate && checkOutDate 
+    ? differenceInDays(checkOutDate, checkInDate) 
+    : 0;
+  const totalPrice = apartment ? totalNights * apartment.pricePerNight : 0;
+
   useEffect(() => {
     fetchApartment();
+    fetchReviews();
   }, [id]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    setCurrentSlide(carouselApi.selectedScrollSnap());
+
+    carouselApi.on("select", () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
 
   const fetchApartment = async () => {
     if (!id) return;
@@ -74,12 +111,41 @@ const ApartmentDetail = () => {
         };
 
         setApartment(transformedApartment);
+        
+        // Fetch lister profile
+        const { data: listerData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", data.lister_id)
+          .single();
+        
+        if (listerData) {
+          setListerProfile(listerData);
+        }
       }
     } catch (error: any) {
       toast.error("Failed to load apartment details");
       console.error("Error fetching apartment:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("*, reviewer:profiles!reviews_reviewer_id_fkey(*)")
+        .eq("apartment_id", id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      if (data) setReviews(data);
+    } catch (error: any) {
+      console.error("Error fetching reviews:", error);
     }
   };
 
@@ -179,7 +245,7 @@ const ApartmentDetail = () => {
 
       {/* Media Carousel */}
       <div className="relative aspect-[4/3]">
-        <Carousel className="w-full h-full">
+        <Carousel className="w-full h-full" setApi={setCarouselApi}>
           <CarouselContent>
             {apartment.media.length > 0 ? (
               apartment.media.map((media, index) => (
@@ -212,6 +278,22 @@ const ApartmentDetail = () => {
             </>
           )}
         </Carousel>
+        
+        {/* Dots Indicator */}
+        {apartment.media.length > 1 && (
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+            {apartment.media.map((_, index) => (
+              <div
+                key={index}
+                className={`h-2 rounded-full transition-all ${
+                  index === currentSlide 
+                    ? "w-8 bg-white" 
+                    : "w-2 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -273,31 +355,184 @@ const ApartmentDetail = () => {
 
         {/* Amenities */}
         {apartment.amenities.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold mb-3">Amenities</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {apartment.amenities.map((amenity, i) => (
-                <Badge key={i} variant="secondary" className="justify-start text-sm py-2">
-                  {amenity}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Amenities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                {apartment.amenities.map((amenity, i) => {
+                  const Icon = amenityIcons[amenity] || Star;
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <Icon className="w-5 h-5 text-primary" />
+                      <span className="text-sm">{amenity}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         )}
+
+        {/* Calendar Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5" />
+              Select Dates
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Check-in</p>
+              <Calendar
+                mode="single"
+                selected={checkInDate}
+                onSelect={setCheckInDate}
+                disabled={(date) => date < new Date()}
+                className="rounded-md border pointer-events-auto"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Check-out</p>
+              <Calendar
+                mode="single"
+                selected={checkOutDate}
+                onSelect={setCheckOutDate}
+                disabled={(date) => !checkInDate || date <= checkInDate}
+                className="rounded-md border pointer-events-auto"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pricing Card */}
+        {totalNights > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Price Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  ${apartment.pricePerNight} x {totalNights} nights
+                </span>
+                <span className="font-semibold">${totalPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Service fee</span>
+                <span className="font-semibold">${(totalPrice * 0.1).toFixed(2)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-lg">
+                <span className="font-bold">Total</span>
+                <span className="font-bold">${(totalPrice * 1.1).toFixed(2)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lister Info Card */}
+        {listerProfile && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Hosted by</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <Avatar className="w-16 h-16">
+                  <AvatarImage src={listerProfile.profile_picture} />
+                  <AvatarFallback>{listerProfile.full_name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">{listerProfile.full_name}</h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span>{listerProfile.rating?.toFixed(1) || "New host"}</span>
+                  </div>
+                </div>
+              </div>
+              <Button className="w-full" variant="outline">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Message Host
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Reviews Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Reviews</span>
+              {apartment.averageRating > 0 && (
+                <div className="flex items-center gap-2 text-base">
+                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                  <span>{apartment.averageRating.toFixed(1)} ({apartment.totalReviews})</span>
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {reviews.length > 0 ? (
+              <>
+                {reviews.map((review) => (
+                  <div key={review.id} className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={review.reviewer?.profile_picture} />
+                        <AvatarFallback>{review.reviewer?.full_name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm">{review.reviewer?.full_name}</p>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xs text-muted-foreground">{review.overall_rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground pl-13">{review.comment}</p>
+                    )}
+                    <Separator />
+                  </div>
+                ))}
+                {apartment.totalReviews > 3 && (
+                  <Button variant="outline" className="w-full">
+                    See All {apartment.totalReviews} Reviews
+                  </Button>
+                )}
+              </>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No reviews yet</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Fixed Bottom Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-2xl font-bold">
-              ${apartment.pricePerNight}
-              <span className="text-base font-normal text-muted-foreground">/night</span>
+            <div className="text-xl font-bold">
+              {totalNights > 0 ? (
+                <>
+                  ${(totalPrice * 1.1).toFixed(0)}
+                  <span className="text-sm font-normal text-muted-foreground"> total</span>
+                </>
+              ) : (
+                <>
+                  ${apartment.pricePerNight}
+                  <span className="text-sm font-normal text-muted-foreground">/night</span>
+                </>
+              )}
             </div>
           </div>
           <Button
             size="lg"
             className="bg-gradient-to-r from-secondary to-accent hover:opacity-90 font-semibold flex-1 max-w-xs"
+            disabled={!checkInDate || !checkOutDate}
           >
             Book Now
           </Button>
