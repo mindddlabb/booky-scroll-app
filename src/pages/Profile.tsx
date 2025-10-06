@@ -22,11 +22,15 @@ import {
   FileText,
   Calendar,
   MapPin,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import ProfileEditDialog from "@/components/ProfileEditDialog";
 import { format, differenceInDays, differenceInHours } from "date-fns";
+import ListerStats from "@/components/ListerStats";
+import ListingCard from "@/components/ListingCard";
+import { Building2 } from "lucide-react";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -40,12 +44,26 @@ const Profile = () => {
     (Booking & { apartments: Apartment })[]
   >([]);
   const [notifications, setNotifications] = useState(true);
+  const [listings, setListings] = useState<Apartment[]>([]);
+  const [listerStats, setListerStats] = useState({
+    totalListings: 0,
+    averageRating: 0,
+  });
 
   useEffect(() => {
     fetchProfile();
-    fetchCurrentBooking();
-    fetchBookingHistory();
   }, []);
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.userType === "lister") {
+        fetchListings();
+      } else {
+        fetchCurrentBooking();
+        fetchBookingHistory();
+      }
+    }
+  }, [profile]);
 
   const fetchProfile = async () => {
     try {
@@ -144,6 +162,81 @@ const Profile = () => {
     }
   };
 
+  const fetchListings = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("apartments")
+        .select("*")
+        .eq("lister_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const transformedListings: Apartment[] = (data || []).map((apt) => ({
+        id: apt.id,
+        listerId: apt.lister_id,
+        name: apt.name,
+        description: apt.description,
+        location: {
+          address: apt.address,
+          city: apt.city,
+          neighborhood: apt.neighborhood,
+          lat: apt.latitude,
+          lng: apt.longitude,
+        },
+        pricePerNight: Number(apt.price_per_night),
+        bedrooms: apt.bedrooms,
+        bathrooms: apt.bathrooms,
+        amenities: apt.amenities || [],
+        media: Array.isArray(apt.media)
+          ? apt.media.map((m: any) => ({
+              type: m.type || "image",
+              url: m.url || m,
+              thumbnail: m.thumbnail,
+            }))
+          : [],
+        availabilityStatus: apt.availability_status,
+        averageRating: Number(apt.average_rating),
+        totalReviews: apt.total_reviews,
+        createdAt: apt.created_at,
+        updatedAt: apt.updated_at,
+      }));
+
+      setListings(transformedListings);
+      setListerStats({
+        totalListings: transformedListings.length,
+        averageRating: profile?.rating || 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching listings:", error);
+    }
+  };
+
+  const handleStatusChange = async (
+    listingId: string,
+    status: "available" | "unavailable"
+  ) => {
+    try {
+      const { error } = await supabase
+        .from("apartments")
+        .update({ availability_status: status })
+        .eq("id", listingId);
+
+      if (error) throw error;
+
+      toast.success("Status updated successfully");
+      fetchListings();
+    } catch (error: any) {
+      toast.error("Failed to update status");
+      console.error(error);
+    }
+  };
+
   const getCheckoutCountdown = (checkOutDateTime: string) => {
     const now = new Date();
     const checkOut = new Date(checkOutDateTime);
@@ -227,8 +320,17 @@ const Profile = () => {
           </div>
         </Card>
 
-        {/* Rating Section */}
-        <Card className="p-6 space-y-4">
+        {/* Lister Stats */}
+        {profile.userType === "lister" && (
+          <ListerStats
+            totalListings={listerStats.totalListings}
+            averageRating={listerStats.averageRating}
+          />
+        )}
+
+        {/* Rating Section (Users only) */}
+        {profile.userType === "user" && (
+          <Card className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Your Guest Rating</h3>
           </div>
@@ -253,9 +355,53 @@ const Profile = () => {
             </div>
           )}
         </Card>
+        )}
 
-        {/* Currently Booked Section */}
-        {currentBooking && (
+        {/* Lister My Listings Section */}
+        {profile.userType === "lister" && (
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">My Listings</h3>
+              <Button
+                size="sm"
+                onClick={() => navigate("/listing/new")}
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Listing
+              </Button>
+            </div>
+            {listings.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4">
+                {listings.map((listing) => (
+                  <ListingCard
+                    key={listing.id}
+                    id={listing.id}
+                    image={listing.media?.[0]?.url || "/placeholder.svg"}
+                    name={listing.name}
+                    location={`${listing.location.city}, ${listing.location.neighborhood || ""}`}
+                    status={listing.availabilityStatus}
+                    views={0}
+                    onEdit={() => navigate(`/listing/edit/${listing.id}`)}
+                    onStatusChange={(status) =>
+                      handleStatusChange(listing.id, status)
+                    }
+                    onClick={() => navigate(`/apartment/${listing.id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Building2 className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                <p>No listings yet</p>
+                <p className="text-sm">Create your first listing to get started</p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Currently Booked Section (Users only) */}
+        {profile.userType === "user" && currentBooking && (
           <Card className="p-6 space-y-4 border-primary">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Currently Staying</h3>
@@ -293,8 +439,8 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Booking History */}
-        {bookingHistory.length > 0 && (
+        {/* Booking History (Users only) */}
+        {profile.userType === "user" && bookingHistory.length > 0 && (
           <Card className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Booking History</h3>

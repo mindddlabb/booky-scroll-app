@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Bookings from "./pages/Bookings";
 import BookingDetails from "./pages/BookingDetails";
+import ListingForm from "./pages/ListingForm";
 import Inbox from "./pages/Inbox";
 import Profile from "./pages/Profile";
 import ApartmentDetail from "./pages/ApartmentDetail";
@@ -71,6 +72,8 @@ const AppRoutes = () => {
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
+        <Route path="/listing/new" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
+        <Route path="/listing/edit/:id" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>
