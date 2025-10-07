@@ -6,9 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, ArrowLeft, MessageCircle, Navigation, FileText, Check, AlertTriangle, Star } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, differenceInHours } from "date-fns";
+import { ReviewForm } from "@/components/ReviewForm";
+import { ReviewsSection } from "@/components/ReviewsSection";
 
 const BookingDetails = () => {
   const { id } = useParams();
@@ -19,6 +22,8 @@ const BookingDetails = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [guestProfile, setGuestProfile] = useState<any>(null);
   const [isLister, setIsLister] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [existingReview, setExistingReview] = useState<any>(null);
 
   useEffect(() => {
     getCurrentUser();
@@ -78,6 +83,23 @@ const BookingDetails = () => {
           .eq("id", data.user_id)
           .single();
         setGuestProfile(guestData);
+      }
+
+      // Check if user has already reviewed
+      if (user) {
+        const { data: reviewData } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('booking_id', id)
+          .eq('reviewer_id', user.id)
+          .maybeSingle();
+
+        setExistingReview(reviewData);
+
+        // Show review prompt if booking is completed and no review exists
+        if (data.status === 'completed' && !reviewData) {
+          setShowReviewForm(true);
+        }
       }
     } catch (error: any) {
       toast.error("Failed to load booking details");
@@ -176,6 +198,11 @@ const BookingDetails = () => {
     toast.info("Report issue functionality coming soon");
   };
 
+  const handleReviewSuccess = () => {
+    setShowReviewForm(false);
+    fetchBookingDetails();
+  };
+
   const handleMarkAvailable = async () => {
     try {
       const { error } = await supabase
@@ -224,6 +251,28 @@ const BookingDetails = () => {
   if (isLister) {
     return (
       <div className="min-h-screen bg-background pb-20">
+        {/* Review Form Dialog */}
+        <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                <div className="flex items-center gap-2">
+                  <Star className="text-primary" />
+                  Rate your experience
+                </div>
+              </DialogTitle>
+            </DialogHeader>
+            <ReviewForm
+              bookingId={booking.id}
+              apartmentId={booking.apartments?.id}
+              revieweeId={booking.user_id}
+              reviewType="lister_reviews_user"
+              userName={guestProfile?.full_name}
+              onSuccess={handleReviewSuccess}
+            />
+          </DialogContent>
+        </Dialog>
+
         <div className="relative">
           {/* Media Gallery */}
           <div className="h-64 bg-muted relative">
@@ -403,6 +452,22 @@ const BookingDetails = () => {
                 </Button>
               )}
             </div>
+
+            {/* Reviews Section */}
+            {booking.status === 'completed' && (
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold">Reviews</h2>
+                  {!existingReview && (
+                    <Button onClick={() => setShowReviewForm(true)} variant="outline" size="sm">
+                      <Star size={16} className="mr-2" />
+                      Leave Review
+                    </Button>
+                  )}
+                </div>
+                <ReviewsSection apartmentId={booking.apartments?.id} />
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -412,6 +477,28 @@ const BookingDetails = () => {
   // Guest View (original)
   return (
     <div className="min-h-screen bg-background pb-20">
+      {/* Review Form Dialog */}
+      <Dialog open={showReviewForm} onOpenChange={setShowReviewForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Star className="text-primary" />
+                Rate your experience
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <ReviewForm
+            bookingId={booking.id}
+            apartmentId={booking.apartments?.id}
+            revieweeId={booking.lister_id}
+            reviewType="user_reviews_lister"
+            apartmentName={booking.apartments?.name}
+            onSuccess={handleReviewSuccess}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="relative">
         {/* Media Gallery */}
         <div className="h-64 bg-muted relative">
@@ -519,6 +606,22 @@ const BookingDetails = () => {
               <p className="text-sm text-muted-foreground">
                 {booking.apartments.description}
               </p>
+            </Card>
+          )}
+
+          {/* Reviews Section */}
+          {booking.status === 'completed' && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Reviews</h2>
+                {!existingReview && (
+                  <Button onClick={() => setShowReviewForm(true)} variant="outline" size="sm">
+                    <Star size={16} className="mr-2" />
+                    Leave Review
+                  </Button>
+                )}
+              </div>
+              <ReviewsSection apartmentId={booking.apartments?.id} />
             </Card>
           )}
         </div>

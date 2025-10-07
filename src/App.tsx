@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Bookings from "./pages/Bookings";
 import BookingDetails from "./pages/BookingDetails";
+import Reviews from "./pages/Reviews";
 import ListingForm from "./pages/ListingForm";
 import Inbox from "./pages/Inbox";
 import Profile from "./pages/Profile";
@@ -69,6 +70,7 @@ const AppRoutes = () => {
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
         <Route path="/booking/:id" element={<ProtectedRoute><BookingDetails /></ProtectedRoute>} />
+        <Route path="/reviews/:apartmentId" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
