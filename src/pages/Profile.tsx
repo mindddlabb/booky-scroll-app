@@ -217,6 +217,35 @@ const Profile = () => {
     }
   };
 
+  const handleListingClick = async (listing: Apartment) => {
+    if (listing.availabilityStatus === "booked") {
+      // Fetch the active booking for this listing
+      try {
+        const { data: bookingData, error } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("apartment_id", listing.id)
+          .in("status", ["pending", "confirmed", "checked_in"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (bookingData) {
+          navigate(`/booking/${bookingData.id}`);
+        } else {
+          navigate(`/apartment/${listing.id}`);
+        }
+      } catch (error) {
+        console.error("Error fetching booking:", error);
+        navigate(`/apartment/${listing.id}`);
+      }
+    } else {
+      navigate(`/apartment/${listing.id}`);
+    }
+  };
+
   const handleStatusChange = async (
     listingId: string,
     status: "available" | "unavailable"
@@ -386,7 +415,7 @@ const Profile = () => {
                     onStatusChange={(status) =>
                       handleStatusChange(listing.id, status)
                     }
-                    onClick={() => navigate(`/apartment/${listing.id}`)}
+                    onClick={() => handleListingClick(listing)}
                   />
                 ))}
               </div>
