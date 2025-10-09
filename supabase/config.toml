@@ -1,1 +1,10 @@
 project_id = "ysmlknvrzcjpxtknazgd"
+
+[functions.send-notification]
+verify_jwt = false
+
+[functions.notify-booking-confirmed]
+verify_jwt = false
+
+[functions.check-bookings-status]
+verify_jwt = false

@@ -2,22 +2,38 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Apartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setFavorites } from "@/store/favoritesSlice";
+import { setSearchQuery } from "@/store/filterSlice";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import FilterModal from "@/components/FilterModal";
 
 const Home = () => {
   const dispatch = useAppDispatch();
+  const filters = useAppSelector((state) => state.filters);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const activeFilterCount = [
+    filters.city,
+    filters.bedrooms,
+    filters.bathrooms,
+    filters.amenities.length > 0,
+    filters.checkInDate,
+    filters.priceMin > 0 || filters.priceMax < 10000,
+  ].filter(Boolean).length;
 
   useEffect(() => {
     fetchApartments();
     fetchFavorites();
-  }, []);
+  }, [filters]);
 
   const fetchFavorites = async () => {
     try {
@@ -41,11 +57,45 @@ const Home = () => {
 
   const fetchApartments = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("apartments")
         .select("*")
-        .eq("availability_status", "available")
-        .order("created_at", { ascending: false });
+        .eq("availability_status", "available");
+
+      // Apply filters
+      if (filters.searchQuery) {
+        query = query.or(
+          `name.ilike.%${filters.searchQuery}%,address.ilike.%${filters.searchQuery}%,city.ilike.%${filters.searchQuery}%`
+        );
+      }
+
+      if (filters.city) {
+        query = query.eq("city", filters.city);
+      }
+
+      if (filters.priceMin > 0) {
+        query = query.gte("price_per_night", filters.priceMin);
+      }
+
+      if (filters.priceMax < 10000) {
+        query = query.lte("price_per_night", filters.priceMax);
+      }
+
+      if (filters.bedrooms) {
+        query = query.gte("bedrooms", filters.bedrooms);
+      }
+
+      if (filters.bathrooms) {
+        query = query.gte("bathrooms", filters.bathrooms);
+      }
+
+      if (filters.amenities.length > 0) {
+        query = query.contains("amenities", filters.amenities);
+      }
+
+      query = query.order("created_at", { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -123,21 +173,62 @@ const Home = () => {
   }
 
   return (
-    <div
-      ref={containerRef}
-      onScroll={handleScroll}
-      className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-      style={{ scrollBehavior: "smooth" }}
-    >
-      {apartments.map((apartment, index) => (
-        <div
-          key={apartment.id}
-          className="h-screen snap-start snap-always relative"
-        >
-          <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
+    <>
+      {/* Search and Filter Bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="flex items-center gap-2 p-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search apartments, locations..."
+              value={filters.searchQuery}
+              onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setFilterModalOpen(true)}
+            className="relative"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {activeFilterCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              >
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
         </div>
-      ))}
-    </div>
+      </div>
+
+      {/* Apartments List */}
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide pt-[72px]"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        {apartments.map((apartment, index) => (
+          <div
+            key={apartment.id}
+            className="h-[calc(100vh-72px)] snap-start snap-always relative"
+          >
+            <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Modal */}
+      <FilterModal
+        open={filterModalOpen}
+        onOpenChange={setFilterModalOpen}
+        onApply={fetchApartments}
+      />
+    </>
   );
 };
 
