@@ -82,12 +82,12 @@ const ListingForm = () => {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     if (formData.media.length + files.length > 10) {
-      toast.error("Maximum 10 images allowed");
+      toast.error("Maximum 10 media files allowed");
       return;
     }
 
@@ -109,7 +109,8 @@ const ListingForm = () => {
           data: { publicUrl },
         } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
 
-        return { url: publicUrl, type: "image" };
+        const mediaType = file.type.startsWith("video/") ? "video" : "image";
+        return { url: publicUrl, type: mediaType };
       });
 
       const uploadedMedia = await Promise.all(uploadPromises);
@@ -118,9 +119,9 @@ const ListingForm = () => {
         media: [...prev.media, ...uploadedMedia],
       }));
 
-      toast.success("Images uploaded successfully");
+      toast.success("Media uploaded successfully");
     } catch (error: any) {
-      toast.error("Failed to upload images");
+      toast.error("Failed to upload media");
       console.error(error);
     } finally {
       setUploading(false);
@@ -160,7 +161,7 @@ const ListingForm = () => {
     }
 
     if (formData.media.length === 0) {
-      toast.error("At least 1 image is required");
+      toast.error("At least 1 image or video is required");
       return;
     }
 
@@ -384,20 +385,28 @@ const ListingForm = () => {
             {/* Media Upload */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">
-                Photos <span className="text-destructive">*</span>
+                Media <span className="text-destructive">*</span>
               </h3>
               <p className="text-sm text-muted-foreground">
-                Upload up to 10 images (at least 1 required)
+                Upload up to 10 images and videos (at least 1 required)
               </p>
 
               <div className="grid grid-cols-3 gap-4">
                 {formData.media.map((item, index) => (
                   <div key={index} className="relative aspect-square">
-                    <img
-                      src={item.url}
-                      alt={`Upload ${index + 1}`}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
+                    {item.type === "video" ? (
+                      <video
+                        src={item.url}
+                        className="w-full h-full object-cover rounded-lg"
+                        controls
+                      />
+                    ) : (
+                      <img
+                        src={item.url}
+                        alt={`Upload ${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    )}
                     <Button
                       type="button"
                       size="icon"
@@ -407,6 +416,9 @@ const ListingForm = () => {
                     >
                       <X className="w-4 h-4" />
                     </Button>
+                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+                      {item.type === "video" ? "Video" : "Image"}
+                    </div>
                   </div>
                 ))}
 
@@ -414,9 +426,9 @@ const ListingForm = () => {
                   <label className="aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-accent transition-colors">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       multiple
-                      onChange={handleImageUpload}
+                      onChange={handleMediaUpload}
                       className="hidden"
                       disabled={uploading}
                     />
@@ -425,7 +437,7 @@ const ListingForm = () => {
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-muted-foreground text-center px-2">
                           Upload
                         </span>
                       </>
