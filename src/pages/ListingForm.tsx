@@ -8,8 +8,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Upload, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, X, Loader2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import imageCompression from "browser-image-compression";
 
 const AMENITIES = [
   "WiFi",
@@ -23,6 +41,76 @@ const AMENITIES = [
   "Pet Friendly",
   "Balcony",
 ];
+
+interface SortableMediaItemProps {
+  id: number;
+  item: { url: string; type: string };
+  index: number;
+  onRemove: (index: number) => void;
+}
+
+const SortableMediaItem = ({
+  id,
+  item,
+  index,
+  onRemove,
+}: SortableMediaItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="relative aspect-square group"
+    >
+      {item.type === "video" ? (
+        <video
+          src={item.url}
+          className="w-full h-full object-cover rounded-lg"
+          controls
+        />
+      ) : (
+        <img
+          src={item.url}
+          alt={`Upload ${index + 1}`}
+          className="w-full h-full object-cover rounded-lg"
+        />
+      )}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 p-1 bg-background/80 backdrop-blur-sm rounded cursor-move opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+      <Button
+        type="button"
+        size="icon"
+        variant="destructive"
+        className="absolute top-2 right-2 h-8 w-8"
+        onClick={() => onRemove(index)}
+      >
+        <X className="w-4 h-4" />
+      </Button>
+      <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+        {item.type === "video" ? "Video" : "Image"} {index + 1}
+      </div>
+    </div>
+  );
+};
 
 const ListingForm = () => {
   const navigate = useNavigate();
@@ -95,13 +183,42 @@ const ListingForm = () => {
 
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const fileExt = file.name.split(".").pop();
+        let processedFile = file;
+
+        // Validate file size (50MB max)
+        const maxSize = 50 * 1024 * 1024; // 50MB
+        if (file.size > maxSize) {
+          toast.error(`${file.name} exceeds 50MB limit`);
+          return null;
+        }
+
+        // Compress images larger than 2MB
+        if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
+          toast.info(`Compressing ${file.name}...`);
+          try {
+            processedFile = await imageCompression(file, {
+              maxSizeMB: 2,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            });
+          } catch (compressionError) {
+            console.error("Compression error:", compressionError);
+            toast.warning(`Could not compress ${file.name}, uploading original`);
+          }
+        }
+
+        // Warn for large videos (but still upload)
+        if (file.type.startsWith("video/") && file.size > 10 * 1024 * 1024) {
+          toast.warning(`${file.name} is large (${(file.size / 1024 / 1024).toFixed(1)}MB). Upload may take longer.`);
+        }
+
+        const fileExt = processedFile.name.split(".").pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("profile-pictures")
-          .upload(filePath, file);
+          .upload(filePath, processedFile);
 
         if (uploadError) throw uploadError;
 
@@ -113,13 +230,17 @@ const ListingForm = () => {
         return { url: publicUrl, type: mediaType };
       });
 
-      const uploadedMedia = await Promise.all(uploadPromises);
-      setFormData((prev) => ({
-        ...prev,
-        media: [...prev.media, ...uploadedMedia],
-      }));
+      const uploadedMedia = (await Promise.all(uploadPromises)).filter(
+        (item): item is { url: string; type: string } => item !== null
+      );
 
-      toast.success("Media uploaded successfully");
+      if (uploadedMedia.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          media: [...prev.media, ...uploadedMedia],
+        }));
+        toast.success("Media uploaded successfully");
+      }
     } catch (error: any) {
       toast.error("Failed to upload media");
       console.error(error);
@@ -142,6 +263,28 @@ const ListingForm = () => {
         ? prev.amenities.filter((a) => a !== amenity)
         : [...prev.amenities, amenity],
     }));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setFormData((prev) => {
+        const oldIndex = prev.media.findIndex((_, i) => i === active.id);
+        const newIndex = prev.media.findIndex((_, i) => i === over.id);
+        return {
+          ...prev,
+          media: arrayMove(prev.media, oldIndex, newIndex),
+        };
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -388,63 +531,54 @@ const ListingForm = () => {
                 Media <span className="text-destructive">*</span>
               </h3>
               <p className="text-sm text-muted-foreground">
-                Upload up to 10 images and videos (at least 1 required)
+                Upload up to 10 images and videos (at least 1 required). Drag to reorder.
               </p>
 
-              <div className="grid grid-cols-3 gap-4">
-                {formData.media.map((item, index) => (
-                  <div key={index} className="relative aspect-square">
-                    {item.type === "video" ? (
-                      <video
-                        src={item.url}
-                        className="w-full h-full object-cover rounded-lg"
-                        controls
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={formData.media.map((_, i) => i)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid grid-cols-3 gap-4">
+                    {formData.media.map((item, index) => (
+                      <SortableMediaItem
+                        key={index}
+                        id={index}
+                        item={item}
+                        index={index}
+                        onRemove={removeMedia}
                       />
-                    ) : (
-                      <img
-                        src={item.url}
-                        alt={`Upload ${index + 1}`}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    )}
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="destructive"
-                      className="absolute top-2 right-2 h-8 w-8"
-                      onClick={() => removeMedia(index)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
-                      {item.type === "video" ? "Video" : "Image"}
-                    </div>
-                  </div>
-                ))}
+                    ))}
 
-                {formData.media.length < 10 && (
-                  <label className="aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-accent transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple
-                      onChange={handleMediaUpload}
-                      className="hidden"
-                      disabled={uploading}
-                    />
-                    {uploading ? (
-                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                        <span className="text-sm text-muted-foreground text-center px-2">
-                          Upload
-                        </span>
-                      </>
+                    {formData.media.length < 10 && (
+                      <label className="aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-accent transition-colors">
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          multiple
+                          onChange={handleMediaUpload}
+                          className="hidden"
+                          disabled={uploading}
+                        />
+                        {uploading ? (
+                          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                        ) : (
+                          <>
+                            <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                            <span className="text-sm text-muted-foreground text-center px-2">
+                              Upload
+                            </span>
+                          </>
+                        )}
+                      </label>
                     )}
-                  </label>
-                )}
-              </div>
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
 
             {/* Availability */}
