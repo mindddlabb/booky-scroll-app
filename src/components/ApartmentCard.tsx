@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Apartment } from "@/types";
-import { Heart, ArrowRight, MapPin, Star, Bed, Bath, Volume2, VolumeX } from "lucide-react";
+import { Heart, ArrowRight, MapPin, Star, Bed, Bath, Volume2, VolumeX, Video } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,31 +119,39 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
 
   return (
     <>
-      <div className="relative w-full h-full" onClick={() => setIsSheetOpen(true)}>
+      <div className="relative w-full h-full">
         {/* Media Carousel - Full Screen */}
-        <Carousel className="w-full h-full">
-          <CarouselContent>
+        <Carousel className="w-full h-full" opts={{ dragFree: true }}>
+          <CarouselContent className="touch-pan-y">
             {apartment.media.length > 0 ? (
               apartment.media.map((media, index) => (
                 <CarouselItem key={index} className="h-screen">
                   {media.type === "video" ? (
-                    <video
-                      ref={(el) => (videoRefs.current[index] = el)}
-                      src={media.url}
-                      className="w-full h-full object-cover"
-                      loop
-                      muted={isMuted}
-                      playsInline
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const video = e.currentTarget;
-                        if (video.paused) {
-                          video.play();
-                        } else {
-                          video.pause();
-                        }
-                      }}
-                    />
+                    <div className="relative w-full h-full">
+                      <video
+                        ref={(el) => (videoRefs.current[index] = el)}
+                        src={media.url}
+                        poster={media.thumbnail}
+                        className="w-full h-full object-cover"
+                        loop
+                        muted={isMuted}
+                        playsInline
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const video = e.currentTarget;
+                          if (video.paused) {
+                            video.play();
+                          } else {
+                            video.pause();
+                          }
+                        }}
+                      />
+                      {media.thumbnail && (
+                        <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-sm px-2 py-1 rounded">
+                          <Video className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <img
                       src={media.url}
@@ -162,8 +170,8 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
           </CarouselContent>
           {apartment.media.length > 1 && (
             <>
-              <CarouselPrevious className="left-4 bg-black/50 border-white/20 text-white hover:bg-black/70" />
-              <CarouselNext className="right-4 bg-black/50 border-white/20 text-white hover:bg-black/70" />
+              <CarouselPrevious className="left-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
+              <CarouselNext className="right-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
             </>
           )}
         </Carousel>
@@ -228,11 +236,11 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
         )}
 
         {/* Bottom Info Preview */}
-        <div className="absolute bottom-6 left-6 right-24 text-white pointer-events-none">
-          <div className="space-y-2">
+        <div className="absolute bottom-6 left-6 right-24 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
+          <div className="space-y-2 pointer-events-auto cursor-pointer">
             <div className="flex items-center gap-2">
               {apartment.averageRating > 0 && (
-                <Badge className="bg-black/50 backdrop-blur-sm border-white/20 pointer-events-auto">
+                <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
                   <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
                   {apartment.averageRating.toFixed(1)}
                 </Badge>

@@ -319,7 +319,7 @@ const ApartmentDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-32 md:pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
         <div className="flex items-center justify-between p-4">
@@ -343,7 +343,7 @@ const ApartmentDetail = () => {
 
       {/* Media Carousel */}
       <div className="relative aspect-[4/3]">
-        <Carousel className="w-full h-full" setApi={setCarouselApi}>
+        <Carousel className="w-full h-full" setApi={setCarouselApi} opts={{ dragFree: true }}>
           <CarouselContent>
             {apartment.media.length > 0 ? (
               apartment.media.map((media, index) => (
@@ -351,8 +351,13 @@ const ApartmentDetail = () => {
                   {media.type === "video" ? (
                     <video
                       src={media.url}
+                      poster={media.thumbnail}
                       className="w-full h-full object-cover"
                       controls
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
                     />
                   ) : (
                     <img
