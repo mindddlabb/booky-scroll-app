@@ -27,6 +27,7 @@ export type Database = {
           city: string
           created_at: string
           description: string | null
+          favorites_count: number
           id: string
           latitude: number | null
           lister_id: string
@@ -50,6 +51,7 @@ export type Database = {
           city: string
           created_at?: string
           description?: string | null
+          favorites_count?: number
           id?: string
           latitude?: number | null
           lister_id: string
@@ -73,6 +75,7 @@ export type Database = {
           city?: string
           created_at?: string
           description?: string | null
+          favorites_count?: number
           id?: string
           latitude?: number | null
           lister_id?: string
