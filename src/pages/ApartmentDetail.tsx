@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Apartment } from "@/types";
-import { Loader2, ArrowLeft, MapPin, Star, Bed, Bath, Heart, Wifi, Wind, Utensils, Car, Tv, WashingMachine, MessageCircle, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Star, Bed, Bath, Heart, Wifi, Wind, Utensils, Car, Tv, WashingMachine, MessageCircle, Calendar as CalendarIcon, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import {
 import type { CarouselApi } from "@/components/ui/carousel";
 import { BookingConfirmationDialog } from "@/components/BookingConfirmationDialog";
 import { BookingSuccessDialog } from "@/components/BookingSuccessDialog";
+import GalleryView from "@/components/GalleryView";
+import QuickInfoModal from "@/components/QuickInfoModal";
 
 const amenityIcons: Record<string, any> = {
   WiFi: Wifi,
@@ -51,6 +53,8 @@ const ApartmentDetail = () => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState("");
+  const [showGallery, setShowGallery] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const isFavorite = id ? favoriteIds.includes(id) : false;
 
@@ -319,7 +323,7 @@ const ApartmentDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32 md:pb-20">
+    <div className="min-h-screen bg-background pb-40 md:pb-28">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
         <div className="flex items-center justify-between p-4">
@@ -330,14 +334,23 @@ const ApartmentDetail = () => {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleFavorite}
-            className={isFavorite ? "text-red-500" : ""}
-          >
-            <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowGallery(true)}
+            >
+              <Grid3x3 className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleFavorite}
+              className={isFavorite ? "text-red-500" : ""}
+            >
+              <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -404,7 +417,12 @@ const ApartmentDetail = () => {
         {/* Title and Rating */}
         <div>
           <div className="flex items-start justify-between mb-2">
-            <h1 className="text-3xl font-bold">{apartment.name}</h1>
+            <h1 
+              className="text-[1.75rem] font-bold cursor-pointer hover:text-primary transition-colors"
+              onClick={() => setShowInfoModal(true)}
+            >
+              {apartment.name}
+            </h1>
             <Badge
               className={`${
                 apartment.availabilityStatus === "available"
@@ -619,8 +637,8 @@ const ApartmentDetail = () => {
       </div>
 
       {/* Fixed Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
-        <div className="flex items-center justify-between gap-4">
+      <div className="fixed bottom-0 left-0 right-0 p-6 md:p-4 bg-background border-t shadow-lg">
+        <div className="flex items-center justify-between gap-4 max-w-screen-xl mx-auto">
           <div>
             <div className="text-xl font-bold">
               {numberOfNights > 0 ? (
@@ -681,6 +699,20 @@ const ApartmentDetail = () => {
           totalPrice={totalPrice}
         />
       )}
+
+      {/* Gallery View */}
+      <GalleryView
+        media={apartment.media}
+        open={showGallery}
+        onOpenChange={setShowGallery}
+      />
+
+      {/* Quick Info Modal */}
+      <QuickInfoModal
+        apartment={apartment}
+        open={showInfoModal}
+        onOpenChange={setShowInfoModal}
+      />
     </div>
   );
 };
