@@ -127,6 +127,7 @@ const Home = () => {
           availabilityStatus: apt.availability_status,
           averageRating: Number(apt.average_rating),
           totalReviews: apt.total_reviews,
+          favoritesCount: apt.favorites_count || 0,
           createdAt: apt.created_at,
           updatedAt: apt.updated_at,
         };

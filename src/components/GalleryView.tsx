@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, ZoomIn, ZoomOut, Grid3x3 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ const GalleryView = ({ media, open, onOpenChange, initialIndex = 0 }: GalleryVie
   const [viewMode, setViewMode] = useState<"grid" | "single">("single");
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
 
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 0.5, 3));
@@ -34,6 +36,37 @@ const GalleryView = ({ media, open, onOpenChange, initialIndex = 0 }: GalleryVie
     setViewMode("single");
     setZoom(1);
   };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (viewMode !== "single") return;
+    
+    const swipeThreshold = 50;
+    const diff = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0 && currentIndex < media.length - 1) {
+        // Swipe left - next image
+        setCurrentIndex(currentIndex + 1);
+        setZoom(1);
+      } else if (diff < 0 && currentIndex > 0) {
+        // Swipe right - previous image
+        setCurrentIndex(currentIndex - 1);
+        setZoom(1);
+      }
+    }
+  };
+
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +117,12 @@ const GalleryView = ({ media, open, onOpenChange, initialIndex = 0 }: GalleryVie
         </div>
 
         {/* Content */}
-        <div className="w-full h-full overflow-auto">
+        <div 
+          className="w-full h-full overflow-auto"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           {viewMode === "grid" ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 p-4 pt-20">
               {media.map((item, index) => (

@@ -122,6 +122,7 @@ const ApartmentDetail = () => {
           availabilityStatus: data.availability_status,
           averageRating: Number(data.average_rating),
           totalReviews: data.total_reviews,
+          favoritesCount: data.favorites_count || 0,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         };
@@ -444,6 +445,15 @@ const ApartmentDetail = () => {
               <span className="text-muted-foreground">
                 ({apartment.totalReviews} reviews)
               </span>
+              {apartment.favoritesCount > 0 && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <Heart className="w-5 h-5 fill-red-400 text-red-400" />
+                  <span className="text-muted-foreground">
+                    {apartment.favoritesCount} {apartment.favoritesCount === 1 ? 'favorite' : 'favorites'}
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Apartment } from "@/types";
-import { Heart, ArrowRight, MapPin, Star, Bed, Bath, Volume2, VolumeX, Video } from "lucide-react";
+import { Heart, ArrowRight, MapPin, Star, Bed, Bath, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,27 +28,6 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
   const favoriteIds = useAppSelector((state) => state.favorites.apartmentIds);
   const isFavorite = favoriteIds.includes(apartment.id);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-
-  // Auto-play videos when card is active
-  useEffect(() => {
-    if (isActive) {
-      videoRefs.current.forEach((video) => {
-        if (video) {
-          video.play().catch(() => {
-            // Auto-play might be blocked, that's ok
-          });
-        }
-      });
-    } else {
-      videoRefs.current.forEach((video) => {
-        if (video) {
-          video.pause();
-        }
-      });
-    }
-  }, [isActive]);
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -107,16 +86,6 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
     navigate(`/apartment/${apartment.id}`);
   };
 
-  const toggleMute = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsMuted(!isMuted);
-    videoRefs.current.forEach((video) => {
-      if (video) {
-        video.muted = !isMuted;
-      }
-    });
-  };
-
   return (
     <>
       <div className="relative w-full h-full">
@@ -124,51 +93,25 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
         <Carousel className="w-full h-full" opts={{ dragFree: true }}>
           <CarouselContent className="touch-pan-y">
             {apartment.media.length > 0 ? (
-              apartment.media.map((media, index) => (
-                <CarouselItem key={index} className="h-screen">
-                  {media.type === "video" ? (
-                    <div className="relative w-full h-full">
-                      <video
-                        ref={(el) => (videoRefs.current[index] = el)}
-                        src={media.url}
-                        poster={media.thumbnail}
-                        className="w-full h-full object-cover"
-                        loop
-                        muted={isMuted}
-                        playsInline
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const video = e.currentTarget;
-                          if (video.paused) {
-                            video.play();
-                          } else {
-                            video.pause();
-                          }
-                        }}
-                      />
-                      {media.thumbnail && (
-                        <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur-sm px-2 py-1 rounded">
-                          <Video className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
+              apartment.media
+                .filter((media) => media.type === "image")
+                .map((media, index) => (
+                  <CarouselItem key={index} className="h-screen">
                     <img
                       src={media.url}
                       alt={`${apartment.name} - Image ${index + 1}`}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                  )}
-                </CarouselItem>
-              ))
+                  </CarouselItem>
+                ))
             ) : (
               <CarouselItem className="h-screen">
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
               </CarouselItem>
             )}
           </CarouselContent>
-          {apartment.media.length > 1 && (
+          {apartment.media.filter((m) => m.type === "image").length > 1 && (
             <>
               <CarouselPrevious className="left-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
               <CarouselNext className="right-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
@@ -219,21 +162,6 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
           </Button>
         </div>
 
-        {/* Video Controls - Bottom Left */}
-        {apartment.media.some((m) => m.type === "video") && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute bottom-24 left-6 rounded-full backdrop-blur-sm bg-black/50 hover:bg-black/70"
-            onClick={toggleMute}
-          >
-            {isMuted ? (
-              <VolumeX className="w-5 h-5" />
-            ) : (
-              <Volume2 className="w-5 h-5" />
-            )}
-          </Button>
-        )}
 
         {/* Bottom Info Preview */}
         <div className="absolute bottom-6 left-6 right-24 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
@@ -243,6 +171,12 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
                 <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
                   <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
                   {apartment.averageRating.toFixed(1)}
+                </Badge>
+              )}
+              {apartment.favoritesCount > 0 && (
+                <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
+                  <Heart className="w-3 h-3 mr-1 fill-red-400 text-red-400" />
+                  {apartment.favoritesCount}
                 </Badge>
               )}
             </div>

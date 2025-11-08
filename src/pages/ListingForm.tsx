@@ -463,6 +463,7 @@ const ListingForm = () => {
     availabilityStatus: formData.availabilityStatus as "available" | "unavailable",
     averageRating: 0,
     totalReviews: 0,
+    favoritesCount: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   } : null;

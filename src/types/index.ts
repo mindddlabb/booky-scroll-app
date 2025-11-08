@@ -46,6 +46,7 @@ export interface Apartment {
   availabilityStatus: AvailabilityStatus;
   averageRating: number;
   totalReviews: number;
+  favoritesCount: number;
   createdAt: string;
   updatedAt: string;
 }
