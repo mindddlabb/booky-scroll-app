@@ -91,11 +91,6 @@ const ApartmentCard = ({
           </CarouselContent>
         </Carousel>
 
-        {/* Book Now Button - Bottom Right */}
-        <Button className="absolute bottom-6 right-6 z-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-full shadow-lg" onClick={handleBook}>
-          Book Now
-        </Button>
-
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
 
@@ -135,19 +130,24 @@ const ApartmentCard = ({
                 {apartment.location.neighborhood || apartment.location.city}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Bed className="w-4 h-4" />
-                <span>{apartment.bedrooms}</span>
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <Bed className="w-4 h-4" />
+                  <span>{apartment.bedrooms}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Bath className="w-4 h-4" />
+                  <span>{apartment.bathrooms}</span>
+                </div>
+                <span className="font-bold">
+                  ${apartment.pricePerNight}
+                  <span className="font-normal text-white/80">/night</span>
+                </span>
               </div>
-              <div className="flex items-center gap-1">
-                <Bath className="w-4 h-4" />
-                <span>{apartment.bathrooms}</span>
-              </div>
-              <span className="font-bold">
-                ${apartment.pricePerNight}
-                <span className="font-normal text-white/80">/night</span>
-              </span>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-full shadow-lg" onClick={handleBook}>
+                Book Now
+              </Button>
             </div>
           </div>
         </div>
