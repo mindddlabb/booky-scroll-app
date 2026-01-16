@@ -111,7 +111,7 @@ const ApartmentCard = ({
 
 
         {/* Bottom Info Preview */}
-        <div className="absolute bottom-6 left-6 right-24 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
+        <div className="absolute bottom-6 left-6 right-6 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
           <div className="space-y-2 pointer-events-auto cursor-pointer px-0 py-[50px]">
             <div className="flex items-center gap-2">
               {apartment.averageRating > 0 && <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
