@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Apartment } from "@/types";
-import { Heart, ArrowRight, MapPin, Star, Bed, Bath, Users } from "lucide-react";
+import { Heart, MapPin, Star, Bed, Bath } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,6 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from "@/components/ui/carousel";
 
 interface ApartmentCardProps {
@@ -111,13 +109,15 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
               </CarouselItem>
             )}
           </CarouselContent>
-          {apartment.media.filter((m) => m.type === "image").length > 1 && (
-            <>
-              <CarouselPrevious className="left-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
-              <CarouselNext className="right-4 bg-black/50 border-white/20 text-white hover:bg-black/70" onClick={(e) => e.stopPropagation()} />
-            </>
-          )}
         </Carousel>
+
+        {/* Book Now Button - Bottom Right */}
+        <Button
+          className="absolute bottom-6 right-6 z-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-full shadow-lg"
+          onClick={handleBook}
+        >
+          Book Now
+        </Button>
 
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
@@ -136,8 +136,8 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
           </span>
         </div>
 
-        {/* Right Side Actions */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-10">
+        {/* Favorite Button - Right Side */}
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10">
           <Button
             size="icon"
             variant="ghost"
@@ -151,14 +151,6 @@ const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
             <Heart
               className={`w-6 h-6 ${isFavorite ? "fill-white" : ""}`}
             />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="rounded-full backdrop-blur-sm bg-black/50 hover:bg-black/70 w-14 h-14"
-            onClick={handleBook}
-          >
-            <ArrowRight className="w-6 h-6" />
           </Button>
         </div>
 
