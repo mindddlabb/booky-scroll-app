@@ -19,7 +19,9 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const activeFilterCount = [
     filters.city,
@@ -175,48 +177,68 @@ const Home = () => {
 
   return (
     <>
-      {/* Search and Filter Bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex items-center gap-2 p-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search apartments, locations..."
-              value={filters.searchQuery}
-              onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-              className="pl-9"
-            />
+      {/* Minimal Search Bar */}
+      <div className="fixed top-4 left-4 right-4 z-50">
+        {searchExpanded ? (
+          <div className="flex items-center gap-2 bg-background/95 backdrop-blur-md rounded-full border shadow-lg p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search..."
+                value={filters.searchQuery}
+                onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+                className="pl-9 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                onBlur={() => {
+                  if (!filters.searchQuery) {
+                    setSearchExpanded(false);
+                  }
+                }}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setFilterModalOpen(true)}
+              className="relative shrink-0"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeFilterCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px]"
+                >
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
           </div>
+        ) : (
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setFilterModalOpen(true)}
-            className="relative"
+            className="rounded-full bg-background/95 backdrop-blur-md shadow-lg h-10 w-10"
+            onClick={() => {
+              setSearchExpanded(true);
+              setTimeout(() => searchInputRef.current?.focus(), 100);
+            }}
           >
-            <SlidersHorizontal className="h-4 w-4" />
-            {activeFilterCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-              >
-                {activeFilterCount}
-              </Badge>
-            )}
+            <Search className="h-4 w-4" />
           </Button>
-        </div>
+        )}
       </div>
 
       {/* Apartments List */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide pt-[72px]"
+        className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
         style={{ scrollBehavior: "smooth" }}
       >
         {apartments.map((apartment, index) => (
           <div
             key={apartment.id}
-            className="h-[calc(100vh-72px)] snap-start snap-always relative"
+            className="h-screen snap-start snap-always relative"
           >
             <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
           </div>
