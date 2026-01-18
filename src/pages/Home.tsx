@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Apartment } from "@/types";
+import { Apartment, ExternalApartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
+import ExternalApartmentCard from "@/components/ExternalApartmentCard";
 import { Loader2, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -11,11 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import FilterModal from "@/components/FilterModal";
+import { externalApartmentsApi } from "@/lib/api/externalApartments";
+
+type MixedListing = (Apartment & { isExternal?: false }) | ExternalApartment;
 
 const Home = () => {
   const dispatch = useAppDispatch();
   const filters = useAppSelector((state) => state.filters);
   const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [externalApartments, setExternalApartments] = useState<ExternalApartment[]>([]);
+  const [mixedListings, setMixedListings] = useState<MixedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -35,6 +41,7 @@ const Home = () => {
   useEffect(() => {
     fetchApartments();
     fetchFavorites();
+    fetchExternalApartments();
   }, [filters]);
 
   const fetchFavorites = async () => {
@@ -144,6 +151,53 @@ const Home = () => {
     }
   };
 
+  const fetchExternalApartments = async () => {
+    // Only fetch external apartments if we have a city filter or search query
+    const location = filters.city || filters.searchQuery;
+    if (!location) {
+      setExternalApartments([]);
+      return;
+    }
+
+    try {
+      const result = await externalApartmentsApi.search(location, filters.searchQuery);
+      if (result.success && result.apartments) {
+        setExternalApartments(result.apartments);
+      }
+    } catch (error) {
+      console.error("Error fetching external apartments:", error);
+    }
+  };
+
+  // Mix external apartments into the feed (every 3-4 local listings)
+  useEffect(() => {
+    if (apartments.length === 0) {
+      setMixedListings([]);
+      return;
+    }
+
+    const mixed: MixedListing[] = [];
+    let externalIndex = 0;
+
+    apartments.forEach((apt, index) => {
+      mixed.push({ ...apt, isExternal: false });
+      
+      // Insert an external listing every 3-4 apartments if available
+      if ((index + 1) % 4 === 0 && externalIndex < externalApartments.length) {
+        mixed.push(externalApartments[externalIndex]);
+        externalIndex++;
+      }
+    });
+
+    // Add remaining external apartments at the end
+    while (externalIndex < externalApartments.length && externalIndex < 3) {
+      mixed.push(externalApartments[externalIndex]);
+      externalIndex++;
+    }
+
+    setMixedListings(mixed);
+  }, [apartments, externalApartments]);
+
   const handleScroll = () => {
     if (!containerRef.current) return;
     
@@ -235,14 +289,29 @@ const Home = () => {
         className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
         style={{ scrollBehavior: "smooth" }}
       >
-        {apartments.map((apartment, index) => (
-          <div
-            key={apartment.id}
-            className="h-screen snap-start snap-always relative"
-          >
-            <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
-          </div>
-        ))}
+        {mixedListings.length > 0 ? (
+          mixedListings.map((listing, index) => (
+            <div
+              key={listing.id}
+              className="h-screen snap-start snap-always relative"
+            >
+              {listing.isExternal ? (
+                <ExternalApartmentCard apartment={listing} isActive={index === currentIndex} />
+              ) : (
+                <ApartmentCard apartment={listing as Apartment} isActive={index === currentIndex} />
+              )}
+            </div>
+          ))
+        ) : (
+          apartments.map((apartment, index) => (
+            <div
+              key={apartment.id}
+              className="h-screen snap-start snap-always relative"
+            >
+              <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
+            </div>
+          ))
+        )}
       </div>
 
       {/* Filter Modal */}

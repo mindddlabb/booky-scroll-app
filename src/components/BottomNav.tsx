@@ -1,4 +1,4 @@
-import { Home, Calendar, MessageCircle, User } from "lucide-react";
+import { Home, Compass, Calendar, MessageCircle, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const BottomNav = () => {
@@ -6,6 +6,7 @@ const BottomNav = () => {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
+    { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Calendar, label: "Bookings", path: "/bookings" },
     { icon: MessageCircle, label: "Inbox", path: "/inbox" },
     { icon: User, label: "Profile", path: "/profile" },

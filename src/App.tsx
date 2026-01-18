@@ -10,6 +10,7 @@ import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
+import Explore from "./pages/Explore";
 import Bookings from "./pages/Bookings";
 import BookingDetails from "./pages/BookingDetails";
 import Reviews from "./pages/Reviews";
@@ -78,6 +79,7 @@ const AppRoutes = () => {
         <Route path="/register" element={isAuthenticated ? <Navigate to="/home" replace /> : <Register />} />
         
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
         <Route path="/bookings" element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
         <Route path="/booking/:id" element={<ProtectedRoute><BookingDetails /></ProtectedRoute>} />
         <Route path="/reviews/:apartmentId" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
