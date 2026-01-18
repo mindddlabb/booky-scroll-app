@@ -17,7 +17,11 @@ interface ExternalApartment {
   sourceName: string;
   bedrooms?: number;
   bathrooms?: number;
-  amenities?: string[];
+  amenities: string[];
+  rating?: number;
+  reviewCount?: number;
+  propertyType?: string;
+  squareFeet?: number;
 }
 
 serve(async (req) => {
@@ -79,16 +83,69 @@ serve(async (req) => {
 
     console.log('Search results received:', data.data?.length || 0);
 
+    // Common amenities to look for
+    const commonAmenities = [
+      'wifi', 'wi-fi', 'internet', 'parking', 'pool', 'gym', 'fitness',
+      'laundry', 'washer', 'dryer', 'dishwasher', 'air conditioning', 'ac', 'a/c',
+      'heating', 'balcony', 'patio', 'pet friendly', 'pets allowed', 'elevator',
+      'doorman', 'concierge', 'security', 'furnished', 'unfurnished',
+      'hardwood', 'stainless', 'granite', 'modern', 'renovated', 'view',
+      'rooftop', 'storage', 'cable', 'utilities included', 'smoke free'
+    ];
+
     // Transform search results into apartment format
     const apartments: ExternalApartment[] = (data.data || []).map((result: any, index: number) => {
-      // Extract price from title or description if available
-      const priceMatch = (result.title + ' ' + (result.description || '')).match(/\$[\d,]+/);
+      const fullText = (result.title + ' ' + (result.description || '') + ' ' + (result.markdown || '')).toLowerCase();
+      
+      // Extract price from title or description
+      const priceMatch = fullText.match(/\$[\d,]+(?:\s*[-–\/]\s*\$[\d,]+)?/);
       const priceStr = priceMatch ? priceMatch[0] : undefined;
       const priceNum = priceStr ? parseInt(priceStr.replace(/[$,]/g, '')) : undefined;
 
-      // Extract bedrooms/bathrooms from content
-      const bedroomMatch = (result.title + ' ' + (result.description || '')).match(/(\d+)\s*(?:bed|br|bedroom)/i);
-      const bathroomMatch = (result.title + ' ' + (result.description || '')).match(/(\d+)\s*(?:bath|ba|bathroom)/i);
+      // Extract bedrooms/bathrooms
+      const bedroomMatch = fullText.match(/(\d+)\s*(?:bed|br|bedroom|bd)/i);
+      const bathroomMatch = fullText.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+
+      // Extract rating
+      const ratingMatch = fullText.match(/(\d+(?:\.\d+)?)\s*(?:\/\s*5|stars?|rating|⭐)/i) || 
+                          fullText.match(/rating[:\s]*(\d+(?:\.\d+)?)/i);
+      const rating = ratingMatch ? parseFloat(ratingMatch[1]) : undefined;
+
+      // Extract review count
+      const reviewMatch = fullText.match(/(\d+)\s*(?:reviews?|ratings?)/i);
+      const reviewCount = reviewMatch ? parseInt(reviewMatch[1]) : undefined;
+
+      // Extract square feet
+      const sqftMatch = fullText.match(/(\d+(?:,\d+)?)\s*(?:sq\.?\s*ft\.?|square\s*feet|sqft)/i);
+      const squareFeet = sqftMatch ? parseInt(sqftMatch[1].replace(',', '')) : undefined;
+
+      // Extract property type
+      let propertyType: string | undefined;
+      if (fullText.includes('studio')) propertyType = 'Studio';
+      else if (fullText.includes('apartment')) propertyType = 'Apartment';
+      else if (fullText.includes('condo')) propertyType = 'Condo';
+      else if (fullText.includes('townhouse') || fullText.includes('town house')) propertyType = 'Townhouse';
+      else if (fullText.includes('house')) propertyType = 'House';
+      else if (fullText.includes('loft')) propertyType = 'Loft';
+
+      // Extract amenities
+      const foundAmenities: string[] = [];
+      commonAmenities.forEach(amenity => {
+        if (fullText.includes(amenity)) {
+          // Normalize amenity names
+          let normalizedAmenity = amenity;
+          if (['wifi', 'wi-fi', 'internet'].includes(amenity)) normalizedAmenity = 'WiFi';
+          else if (['ac', 'a/c', 'air conditioning'].includes(amenity)) normalizedAmenity = 'A/C';
+          else if (['gym', 'fitness'].includes(amenity)) normalizedAmenity = 'Gym';
+          else if (['washer', 'dryer', 'laundry'].includes(amenity)) normalizedAmenity = 'Laundry';
+          else if (['pet friendly', 'pets allowed'].includes(amenity)) normalizedAmenity = 'Pet Friendly';
+          else normalizedAmenity = amenity.charAt(0).toUpperCase() + amenity.slice(1);
+          
+          if (!foundAmenities.includes(normalizedAmenity)) {
+            foundAmenities.push(normalizedAmenity);
+          }
+        }
+      });
 
       // Extract source name from URL
       let sourceName = 'External Listing';
@@ -111,7 +168,12 @@ serve(async (req) => {
         sourceUrl: result.url,
         sourceName,
         bedrooms: bedroomMatch ? parseInt(bedroomMatch[1]) : undefined,
-        bathrooms: bathroomMatch ? parseInt(bathroomMatch[1]) : undefined,
+        bathrooms: bathroomMatch ? parseFloat(bathroomMatch[1]) : undefined,
+        amenities: foundAmenities.slice(0, 8), // Limit to 8 amenities
+        rating: rating && rating <= 5 ? rating : undefined,
+        reviewCount,
+        propertyType,
+        squareFeet,
       };
     }).filter((apt: ExternalApartment) => apt.sourceUrl && apt.name);
 
