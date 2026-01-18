@@ -117,6 +117,10 @@ export interface ExternalApartment {
   sourceName: string;
   bedrooms?: number;
   bathrooms?: number;
-  amenities?: string[];
+  amenities: string[];
+  rating?: number;
+  reviewCount?: number;
+  propertyType?: string;
+  squareFeet?: number;
   isExternal: true;
 }
