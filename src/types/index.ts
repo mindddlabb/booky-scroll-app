@@ -104,3 +104,19 @@ export interface Favorite {
   apartmentId: string;
   createdAt: string;
 }
+
+export interface ExternalApartment {
+  id: string;
+  name: string;
+  description?: string;
+  price?: string;
+  pricePerNight?: number;
+  location: string;
+  imageUrl?: string;
+  sourceUrl: string;
+  sourceName: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  amenities?: string[];
+  isExternal: true;
+}
