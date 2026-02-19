@@ -12,12 +12,14 @@ const Explore = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [apartments, setApartments] = useState<ExternalApartment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = async () => {
-    if (!location.trim()) {
+  const handleSearch = async (loc?: string) => {
+    const searchLocation = loc || location;
+    if (!searchLocation.trim()) {
       toast.error("Please enter a location to search");
       return;
     }
@@ -26,7 +28,7 @@ const Explore = () => {
     setHasSearched(true);
 
     try {
-      const result = await externalApartmentsApi.search(location, searchQuery);
+      const result = await externalApartmentsApi.search(searchLocation, searchQuery);
 
       if (result.success && result.apartments) {
         setApartments(result.apartments);
@@ -45,6 +47,55 @@ const Explore = () => {
       setLoading(false);
     }
   };
+
+  const detectLocation = async () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setDetectingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`
+          );
+          const data = await res.json();
+          const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || "";
+          const state = data.address?.state || "";
+          const detected = [city, state].filter(Boolean).join(", ");
+
+          if (detected) {
+            setLocation(detected);
+            toast.success(`Location detected: ${detected}`);
+            handleSearch(detected);
+          } else {
+            toast.error("Could not determine your city");
+          }
+        } catch {
+          toast.error("Failed to detect location");
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => {
+        toast.error("Location access denied");
+        setDetectingLocation(false);
+      },
+      { timeout: 10000 }
+    );
+  };
+
+  // Auto-detect on first load
+  useEffect(() => {
+    if (!location && !hasSearched) {
+      detectLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -71,9 +122,19 @@ const Explore = () => {
                 placeholder="Enter city, state or region..."
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="pl-9"
+                className="pl-9 pr-24"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7 px-2"
+                onClick={detectLocation}
+                disabled={detectingLocation}
+              >
+                {detectingLocation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <MapPin className="h-3 w-3 mr-1" />}
+                Detect
+              </Button>
             </div>
             
             <div className="flex gap-2">
@@ -87,7 +148,7 @@ const Explore = () => {
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <Button onClick={handleSearch} disabled={loading}>
+              <Button onClick={() => handleSearch()} disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
               </Button>
             </div>
