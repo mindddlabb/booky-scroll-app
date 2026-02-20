@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, Search } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { MessageCircle, Search, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import ConversationCard from "@/components/ConversationCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Conversation {
   conversationId: string;
@@ -33,31 +33,21 @@ const Inbox = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get all messages where user is sender or receiver
       const { data: messages, error } = await supabase
         .from("messages")
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(full_name, profile_picture),
-          receiver:profiles!messages_receiver_id_fkey(full_name, profile_picture),
-          apartment:apartments(media)
-        `)
+        .select(`*, sender:profiles!messages_sender_id_fkey(full_name, profile_picture), receiver:profiles!messages_receiver_id_fkey(full_name, profile_picture), apartment:apartments(media)`)
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .order("sent_at", { ascending: false });
 
       if (error) throw error;
 
-      // Group messages by conversation_id
       const conversationMap = new Map<string, Conversation>();
-
       messages?.forEach((message: any) => {
         const convId = message.conversation_id;
-        
         if (!conversationMap.has(convId)) {
           const isUserSender = message.sender_id === user.id;
           const otherUser = isUserSender ? message.receiver : message.sender;
           const apartmentMedia = message.apartment?.media?.[0];
-
           conversationMap.set(convId, {
             conversationId: convId,
             otherUserId: isUserSender ? message.receiver_id : message.sender_id,
@@ -72,15 +62,8 @@ const Inbox = () => {
         }
       });
 
-      // Count unread messages for each conversation
       for (const [convId, conv] of conversationMap) {
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("conversation_id", convId)
-          .eq("receiver_id", user.id)
-          .eq("read_status", false);
-
+        const { count } = await supabase.from("messages").select("*", { count: "exact", head: true }).eq("conversation_id", convId).eq("receiver_id", user.id).eq("read_status", false);
         conv.unreadCount = count || 0;
       }
 
@@ -88,20 +71,14 @@ const Inbox = () => {
       setConversations(conversationsList);
       setFilteredConversations(conversationsList);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchConversations();
-  }, []);
+  useEffect(() => { fetchConversations(); }, []);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -122,77 +99,77 @@ const Inbox = () => {
 
   const handleConversationClick = (conversation: Conversation) => {
     navigate(`/chat/${conversation.conversationId}`, {
-      state: {
-        otherUserId: conversation.otherUserId,
-        otherUserName: conversation.otherUserName,
-        apartmentId: conversation.apartmentId,
-      },
+      state: { otherUserId: conversation.otherUserId, otherUserName: conversation.otherUserName, apartmentId: conversation.apartmentId },
     });
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 pt-6">
-      <div className="max-w-2xl mx-auto px-6 space-y-6">
-        <h1 className="text-3xl font-bold">Messages</h1>
-
+    <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-5 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-semibold">Messages</h1>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
           />
         </div>
+      </div>
 
+      <div className="px-5 pt-4">
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-4 h-20 animate-pulse bg-muted" />
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex gap-3 p-4 rounded-2xl border animate-in fade-in duration-300">
+                <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              </div>
             ))}
           </div>
         ) : filteredConversations.length === 0 ? (
-          <Card className="p-12 text-center">
-            <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-xl font-semibold mb-2">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <MessageCircle className="w-8 h-8 text-muted-foreground/50" />
+            </div>
+            <h3 className="font-semibold text-base mb-1">
               {searchQuery ? "No conversations found" : "No messages yet"}
             </h3>
-            <p className="text-muted-foreground">
-              {searchQuery
-                ? "Try a different search term"
-                : "Your conversations with hosts will appear here"}
+            <p className="text-sm text-muted-foreground max-w-xs">
+              {searchQuery ? "Try a different search term" : "Your conversations with hosts will appear here"}
             </p>
-          </Card>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {refreshing && (
-              <div className="text-center text-sm text-muted-foreground py-2">
-                Refreshing...
+          <div className="space-y-2">
+            {filteredConversations.map((conversation, i) => (
+              <div key={conversation.conversationId} className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                <ConversationCard
+                  listerName={conversation.otherUserName}
+                  listerAvatar={conversation.otherUserAvatar}
+                  apartmentThumbnail={conversation.apartmentThumbnail}
+                  lastMessage={conversation.lastMessage}
+                  timestamp={conversation.lastMessageTime}
+                  unreadCount={conversation.unreadCount}
+                  onClick={() => handleConversationClick(conversation)}
+                />
               </div>
-            )}
-            {filteredConversations.map((conversation) => (
-              <ConversationCard
-                key={conversation.conversationId}
-                listerName={conversation.otherUserName}
-                listerAvatar={conversation.otherUserAvatar}
-                apartmentThumbnail={conversation.apartmentThumbnail}
-                lastMessage={conversation.lastMessage}
-                timestamp={conversation.lastMessageTime}
-                unreadCount={conversation.unreadCount}
-                onClick={() => handleConversationClick(conversation)}
-              />
             ))}
           </div>
-        )}
-
-        {!loading && filteredConversations.length > 0 && (
-          <button
-            onClick={handleRefresh}
-            className="w-full text-center text-sm text-primary hover:underline py-2"
-            disabled={refreshing}
-          >
-            Pull to refresh
-          </button>
         )}
       </div>
     </div>

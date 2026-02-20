@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Booking } from "@/types";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Calendar, MapPin, ChevronRight } from "lucide-react";
+import { Loader2, Calendar, MapPin, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "bg-primary/10 text-primary border-primary/20",
+  checked_in: "bg-green-500/10 text-green-600 border-green-200",
+  completed: "bg-muted text-muted-foreground border-border",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  pending: "bg-secondary/10 text-secondary border-secondary/20",
+};
 
 const Bookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -15,55 +22,33 @@ const Bookings = () => {
   const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+  useEffect(() => { fetchBookings(); }, []);
 
   const fetchBookings = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
-      
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast.error("Please login to view bookings");
-        return;
-      }
+      if (!user) { toast.error("Please login to view bookings"); return; }
 
       const { data, error } = await supabase
         .from("bookings")
-        .select(`
-          *,
-          apartments (
-            name,
-            address,
-            city,
-            media
-          )
-        `)
+        .select(`*, apartments (name, address, city, media)`)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       const transformedBookings: Booking[] = (data || []).map((booking) => ({
-        id: booking.id,
-        userId: booking.user_id,
-        apartmentId: booking.apartment_id,
-        listerId: booking.lister_id,
-        checkInDateTime: booking.check_in_date_time,
-        checkOutDateTime: booking.check_out_date_time,
-        totalPrice: Number(booking.total_price),
-        status: booking.status,
-        paymentStatus: booking.payment_status,
-        createdAt: booking.created_at,
-        updatedAt: booking.updated_at,
+        id: booking.id, userId: booking.user_id, apartmentId: booking.apartment_id,
+        listerId: booking.lister_id, checkInDateTime: booking.check_in_date_time,
+        checkOutDateTime: booking.check_out_date_time, totalPrice: Number(booking.total_price),
+        status: booking.status, paymentStatus: booking.payment_status,
+        createdAt: booking.created_at, updatedAt: booking.updated_at,
       }));
 
       setBookings(transformedBookings);
     } catch (error: any) {
       toast.error("Failed to load bookings");
-      console.error("Error fetching bookings:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,119 +68,92 @@ const Bookings = () => {
   }
 
   const renderBookingCard = (booking: any) => (
-    <Card 
-      key={booking.id} 
-      className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+    <div
+      key={booking.id}
       onClick={() => navigate(`/booking/${booking.id}`)}
+      className="flex gap-3 p-4 rounded-2xl bg-card border cursor-pointer hover:border-primary/30 transition-all active:scale-[0.98] animate-in fade-in duration-300"
     >
-      <div className="flex gap-4">
-        <div className="w-24 h-24 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
-          {booking.apartments?.media?.[0]?.url ? (
-            <img
-              src={booking.apartments.media[0].url}
-              alt={booking.apartments.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
-          )}
+      {/* Thumbnail */}
+      <div className="w-[72px] h-[72px] rounded-xl bg-muted shrink-0 overflow-hidden">
+        {booking.apartments?.media?.[0]?.url ? (
+          <img src={booking.apartments.media[0].url} alt={booking.apartments.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-sm leading-tight truncate">{booking.apartments?.name}</p>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${STATUS_COLORS[booking.status] || STATUS_COLORS.pending}`}>
+            {booking.status === "checked_in" ? "Checked In" : booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1)}
+          </span>
         </div>
-        
-        <div className="flex-1 space-y-2">
-          <div className="flex items-start justify-between">
-            <h3 className="font-semibold">{booking.apartments?.name}</h3>
-            <Badge variant={
-              booking.status === "confirmed" ? "default" :
-              booking.status === "checked_in" ? "default" :
-              booking.status === "completed" ? "outline" :
-              "destructive"
-            }>
-              {booking.status === "checked_in" ? "Checked In" : booking.status}
-            </Badge>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="w-4 h-4" />
-            <span>{booking.apartments?.city}</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <p>
-                {format(new Date(booking.checkInDateTime), "MMM d")} - {format(new Date(booking.checkOutDateTime), "MMM d, yyyy")}
-              </p>
-              <p className="font-semibold text-primary mt-1">
-                ${booking.totalPrice}
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="w-3 h-3 shrink-0" />
+          <span className="truncate">{booking.apartments?.city}</span>
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-xs text-muted-foreground">
+            {format(new Date(booking.checkInDateTime), "MMM d")} – {format(new Date(booking.checkOutDateTime), "MMM d, yyyy")}
+          </p>
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold text-primary">${booking.totalPrice}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 
-  const renderEmptyState = (message: string) => (
-    <Card className="p-12 text-center">
-      <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-      <h3 className="text-xl font-semibold mb-2">{message}</h3>
-      <p className="text-muted-foreground">
-        {message === "No bookings yet" 
-          ? "Start exploring apartments to make your first booking"
-          : "Check back later for updates"}
-      </p>
-    </Card>
+  const renderEmpty = (msg: string, sub: string) => (
+    <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+        <Calendar className="w-8 h-8 text-muted-foreground/50" />
+      </div>
+      <h3 className="font-semibold text-base mb-1">{msg}</h3>
+      <p className="text-sm text-muted-foreground">{sub}</p>
+    </div>
   );
 
   return (
-    <div className="min-h-screen bg-background pb-20 pt-6">
-      <div className="max-w-2xl mx-auto px-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">My Bookings</h1>
-          <button 
-            onClick={() => fetchBookings(true)}
-            disabled={refreshing}
-            className="text-sm text-primary hover:underline disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
+    <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-5 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">My Bookings</h1>
+        <button
+          onClick={() => fetchBookings(true)}
+          disabled={refreshing}
+          className="w-9 h-9 rounded-full bg-muted flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
+      </div>
 
+      <div className="px-5 pt-4">
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upcoming">
-              Upcoming ({upcomingBookings.length})
+          <TabsList className="w-full grid grid-cols-3 bg-muted/60 rounded-2xl p-1 h-auto">
+            <TabsTrigger value="upcoming" className="rounded-xl text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Upcoming <span className="ml-1 text-[10px] opacity-60">({upcomingBookings.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="ongoing">
-              Ongoing ({ongoingBookings.length})
+            <TabsTrigger value="ongoing" className="rounded-xl text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Ongoing <span className="ml-1 text-[10px] opacity-60">({ongoingBookings.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="past">
-              Past ({pastBookings.length})
+            <TabsTrigger value="past" className="rounded-xl text-xs py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Past <span className="ml-1 text-[10px] opacity-60">({pastBookings.length})</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="upcoming" className="space-y-4 mt-6">
-            {upcomingBookings.length === 0 ? (
-              renderEmptyState("No upcoming bookings")
-            ) : (
-              upcomingBookings.map(renderBookingCard)
-            )}
+          <TabsContent value="upcoming" className="mt-4 space-y-3">
+            {upcomingBookings.length === 0 ? renderEmpty("No upcoming bookings", "Start exploring apartments to plan your next stay") : upcomingBookings.map(renderBookingCard)}
           </TabsContent>
 
-          <TabsContent value="ongoing" className="space-y-4 mt-6">
-            {ongoingBookings.length === 0 ? (
-              renderEmptyState("No ongoing bookings")
-            ) : (
-              ongoingBookings.map(renderBookingCard)
-            )}
+          <TabsContent value="ongoing" className="mt-4 space-y-3">
+            {ongoingBookings.length === 0 ? renderEmpty("No ongoing bookings", "Your active stays will appear here") : ongoingBookings.map(renderBookingCard)}
           </TabsContent>
 
-          <TabsContent value="past" className="space-y-4 mt-6">
-            {pastBookings.length === 0 ? (
-              renderEmptyState("No past bookings")
-            ) : (
-              pastBookings.map(renderBookingCard)
-            )}
+          <TabsContent value="past" className="mt-4 space-y-3">
+            {pastBookings.length === 0 ? renderEmpty("No past bookings", "Your completed stays will appear here") : pastBookings.map(renderBookingCard)}
           </TabsContent>
         </Tabs>
       </div>
