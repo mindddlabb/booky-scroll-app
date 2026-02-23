@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Apartment } from "@/types";
-import { Heart, MapPin, Star, Bed, Bath } from "lucide-react";
+import { Heart, MapPin, Star, Bed, Bath, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -10,151 +9,177 @@ import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
 import QuickInfoModal from "./QuickInfoModal";
 import { useNavigate } from "react-router-dom";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import type { CarouselApi } from "@/components/ui/carousel";
+import { useEffect } from "react";
+
 interface ApartmentCardProps {
   apartment: Apartment;
   isActive: boolean;
 }
-const ApartmentCard = ({
-  apartment,
-  isActive
-}: ApartmentCardProps) => {
+
+const ApartmentCard = ({ apartment, isActive }: ApartmentCardProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const favoriteIds = useAppSelector(state => state.favorites.apartmentIds);
+  const favoriteIds = useAppSelector((state) => state.favorites.apartmentIds);
   const isFavorite = favoriteIds.includes(apartment.id);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    setCurrentSlide(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", () => setCurrentSlide(carouselApi.selectedScrollSnap()));
+  }, [carouselApi]);
+
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please login to save favorites");
-        return;
-      }
-
-      // Optimistic update
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please login to save favorites"); return; }
       if (isFavorite) {
         dispatch(removeFavorite(apartment.id));
-      } else {
-        dispatch(addFavorite(apartment.id));
-      }
-
-      // Update database
-      if (isFavorite) {
-        const {
-          error
-        } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("apartment_id", apartment.id);
-        if (error) {
-          // Revert on error
-          dispatch(addFavorite(apartment.id));
-          throw error;
-        }
+        const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("apartment_id", apartment.id);
+        if (error) { dispatch(addFavorite(apartment.id)); throw error; }
         toast.success("Removed from favorites");
       } else {
-        const {
-          error
-        } = await supabase.from("favorites").insert({
-          user_id: user.id,
-          apartment_id: apartment.id
-        });
-        if (error) {
-          // Revert on error
-          dispatch(removeFavorite(apartment.id));
-          throw error;
-        }
+        dispatch(addFavorite(apartment.id));
+        const { error } = await supabase.from("favorites").insert({ user_id: user.id, apartment_id: apartment.id });
+        if (error) { dispatch(removeFavorite(apartment.id)); throw error; }
         toast.success("Added to favorites");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update favorites");
-    }
+    } catch (error: any) { toast.error(error.message || "Failed to update favorites"); }
   };
+
   const handleBook = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/apartment/${apartment.id}`);
   };
-  return <>
+
+  const imageMedia = apartment.media.filter((m) => m.type === "image");
+
+  return (
+    <>
       <div className="relative w-full h-full">
-        {/* Media Carousel - Full Screen */}
-        <Carousel className="w-full h-full" opts={{
-        dragFree: true
-      }}>
+        {/* Media Carousel */}
+        <Carousel className="w-full h-full" opts={{ dragFree: true }} setApi={setCarouselApi}>
           <CarouselContent className="touch-pan-y">
-            {apartment.media.length > 0 ? apartment.media.filter(media => media.type === "image").map((media, index) => <CarouselItem key={index} className="h-screen">
-                    <img src={media.url} alt={`${apartment.name} - Image ${index + 1}`} className="w-full h-full object-cover" loading="lazy" />
-                  </CarouselItem>) : <CarouselItem className="h-screen">
+            {imageMedia.length > 0 ? (
+              imageMedia.map((media, index) => (
+                <CarouselItem key={index} className="h-screen">
+                  <img src={media.url} alt={`${apartment.name} - ${index + 1}`}
+                    className="w-full h-full object-cover" loading="lazy" />
+                </CarouselItem>
+              ))
+            ) : (
+              <CarouselItem className="h-screen">
                 <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
-              </CarouselItem>}
+              </CarouselItem>
+            )}
           </CarouselContent>
         </Carousel>
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70 pointer-events-none" />
 
-        {/* Availability Dot - Top Right */}
-        <div className="absolute top-6 right-6 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full">
-          <div className={`w-3 h-3 rounded-full ${apartment.availabilityStatus === "available" ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" : "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"}`} />
-          <span className="text-white text-xs font-medium capitalize">
+        {/* Top bar */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pt-safe">
+          {/* Slide dots */}
+          {imageMedia.length > 1 && (
+            <div className="flex gap-1">
+              {imageMedia.map((_, index) => (
+                <div key={index}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    index === currentSlide ? "w-5 bg-white" : "w-1 bg-white/40"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+          {imageMedia.length <= 1 && <div />}
+
+          {/* Availability pill */}
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full backdrop-blur-md ${
+            apartment.availabilityStatus === "available"
+              ? "bg-primary/80 text-primary-foreground"
+              : "bg-destructive/80 text-destructive-foreground"
+          }`}>
             {apartment.availabilityStatus}
           </span>
         </div>
 
-        {/* Favorite Button - Right Side */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 z-10">
-          <Button size="icon" variant="ghost" className={`rounded-full backdrop-blur-sm w-14 h-14 ${isFavorite ? "bg-red-500/80 hover:bg-red-600/80" : "bg-black/50 hover:bg-black/70"}`} onClick={handleFavorite}>
-            <Heart className={`w-6 h-6 ${isFavorite ? "fill-white" : ""}`} />
-          </Button>
+        {/* Right-side actions */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-3">
+          <button
+            onClick={handleFavorite}
+            className={`w-12 h-12 rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 active:scale-90 ${
+              isFavorite
+                ? "bg-red-500/90 shadow-lg shadow-red-500/30"
+                : "bg-black/30 hover:bg-black/50"
+            }`}
+          >
+            <Heart className={`w-5 h-5 text-white ${isFavorite ? "fill-white" : ""}`} />
+          </button>
         </div>
 
+        {/* Bottom card */}
+        <div className="absolute bottom-0 left-0 right-0 p-5 pb-24">
+          <div
+            onClick={() => setIsSheetOpen(true)}
+            className="bg-background/90 backdrop-blur-xl rounded-3xl p-5 shadow-2xl cursor-pointer transition-transform active:scale-[0.98] animate-in slide-in-from-bottom-4 duration-500"
+          >
+            {/* Badges row */}
+            <div className="flex items-center gap-2 mb-2">
+              {apartment.averageRating > 0 && (
+                <div className="flex items-center gap-1 bg-primary/10 rounded-full px-2.5 py-1">
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                  <span className="text-xs font-bold">{apartment.averageRating.toFixed(1)}</span>
+                </div>
+              )}
+              {apartment.favoritesCount > 0 && (
+                <div className="flex items-center gap-1 bg-secondary/10 rounded-full px-2.5 py-1">
+                  <Heart className="w-3 h-3 fill-destructive text-destructive" />
+                  <span className="text-xs font-semibold">{apartment.favoritesCount}</span>
+                </div>
+              )}
+            </div>
 
-        {/* Bottom Info Preview */}
-        <div className="absolute bottom-6 left-6 right-6 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
-          <div className="space-y-2 pointer-events-auto cursor-pointer px-0 py-[50px]">
-            <div className="flex items-center gap-2">
-              {apartment.averageRating > 0 && <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
-                  <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-                  {apartment.averageRating.toFixed(1)}
-                </Badge>}
-              {apartment.favoritesCount > 0 && <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
-                  <Heart className="w-3 h-3 mr-1 fill-red-400 text-red-400" />
-                  {apartment.favoritesCount}
-                </Badge>}
+            {/* Title & location */}
+            <h2 className="text-lg font-bold leading-snug line-clamp-1 mb-1">{apartment.name}</h2>
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-sm line-clamp-1">{apartment.location.neighborhood || apartment.location.city}</span>
             </div>
-            <h2 className="text-2xl font-bold line-clamp-1">{apartment.name}</h2>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4" />
-              <span className="line-clamp-1">
-                {apartment.location.neighborhood || apartment.location.city}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <Bed className="w-4 h-4" />
+
+            {/* Stats row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Bed className="w-3.5 h-3.5" />
                   <span>{apartment.bedrooms}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Bath className="w-4 h-4" />
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Bath className="w-3.5 h-3.5" />
                   <span>{apartment.bathrooms}</span>
                 </div>
-                <span className="font-bold">
-                  ${apartment.pricePerNight}
-                  <span className="font-normal text-white/80">/night</span>
+                <span className="text-base font-bold text-primary">
+                  ${apartment.pricePerNight}<span className="text-xs font-normal text-muted-foreground">/night</span>
                 </span>
               </div>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-full shadow-lg" onClick={handleBook}>
-                Book Now
+              <Button
+                className="rounded-2xl font-semibold px-5 gap-1 shadow-md"
+                onClick={handleBook}
+              >
+                Book <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Info Bottom Sheet */}
       <QuickInfoModal apartment={apartment} open={isSheetOpen} onOpenChange={setIsSheetOpen} />
-    </>;
+    </>
+  );
 };
+
 export default ApartmentCard;
