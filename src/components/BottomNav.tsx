@@ -13,8 +13,8 @@ const BottomNav = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-t">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-4 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-4">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -23,14 +23,12 @@ const BottomNav = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-colors duration-200 ${isActive ? "bg-primary/10" : ""}`}>
-                <Icon className={`w-5 h-5 ${isActive ? "fill-primary/20" : ""}`} />
-              </div>
-              <span className="text-[10px] font-semibold">{item.label}</span>
+              <Icon className={`w-6 h-6 ${isActive ? "fill-primary/20" : ""}`} />
+              <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );
         })}
