@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Loader2, MapPin } from "lucide-react";
+import { Search, Loader2, MapPin, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExternalApartment } from "@/types";
@@ -89,7 +89,6 @@ const Explore = () => {
     );
   };
 
-  // Auto-detect on first load
   useEffect(() => {
     if (!location && !hasSearched) {
       detectLocation();
@@ -107,82 +106,100 @@ const Explore = () => {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      {/* Search Header */}
-      <div className="p-4 border-b bg-background/95 backdrop-blur-md sticky top-0 z-50">
-        <div className="space-y-3">
-          <h1 className="text-xl font-bold">Explore External Listings</h1>
-          <p className="text-sm text-muted-foreground">
-            Search for apartments from across the web in your area
-          </p>
-          
-          <div className="flex flex-col gap-2">
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b px-5 pt-5 pb-4">
+        <div className="animate-fade-in space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Explore</h1>
+              <p className="text-xs text-muted-foreground">Discover listings across the web</p>
+            </div>
+          </div>
+
+          {/* Location Pill Input */}
+          <div className="relative">
+            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="City, state or region..."
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="pl-10 pr-24 h-11 rounded-2xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs h-8 px-3 rounded-xl text-primary hover:bg-primary/10"
+              onClick={detectLocation}
+              disabled={detectingLocation}
+            >
+              {detectingLocation ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <MapPin className="h-3 w-3 mr-1" />
+              )}
+              Detect
+            </Button>
+          </div>
+
+          {/* Search Pill Input */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Enter city, state or region..."
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="pl-9 pr-24"
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Keywords (optional)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-11 rounded-2xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7 px-2"
-                onClick={detectLocation}
-                disabled={detectingLocation}
-              >
-                {detectingLocation ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <MapPin className="h-3 w-3 mr-1" />}
-                Detect
-              </Button>
             </div>
-            
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search keywords (optional)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-              <Button onClick={() => handleSearch()} disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-              </Button>
-            </div>
+            <Button
+              onClick={() => handleSearch()}
+              disabled={loading}
+              className="h-11 px-6 rounded-2xl font-semibold"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Results */}
+      {/* Results Area */}
       <div className="flex-1 overflow-hidden">
         {loading ? (
-          <div className="h-full flex items-center justify-center">
+          <div className="h-full flex items-center justify-center animate-fade-in">
             <div className="text-center space-y-4">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-              <p className="text-muted-foreground">Searching the web for apartments...</p>
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
+              </div>
+              <p className="text-muted-foreground text-sm">Searching the web for apartments...</p>
             </div>
           </div>
         ) : !hasSearched ? (
-          <div className="h-full flex items-center justify-center p-6">
-            <div className="text-center space-y-4 max-w-sm">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <Search className="w-8 h-8 text-primary" />
+          <div className="h-full flex items-center justify-center p-6 animate-fade-in">
+            <div className="text-center space-y-5 max-w-xs">
+              <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto">
+                <Search className="w-9 h-9 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold">Find Apartments Anywhere</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-xl font-bold">Find Apartments Anywhere</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Enter your location above to discover apartments from rental sites across the internet.
               </p>
             </div>
           </div>
         ) : apartments.length === 0 ? (
-          <div className="h-full flex items-center justify-center p-6">
-            <div className="text-center space-y-4">
+          <div className="h-full flex items-center justify-center p-6 animate-fade-in">
+            <div className="text-center space-y-4 max-w-xs">
+              <div className="w-16 h-16 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto">
+                <MapPin className="w-7 h-7 text-muted-foreground" />
+              </div>
               <h2 className="text-xl font-bold">No apartments found</h2>
-              <p className="text-muted-foreground">
-                Try searching for a different location or using different keywords.
+              <p className="text-sm text-muted-foreground">
+                Try a different location or different keywords.
               </p>
             </div>
           </div>
@@ -197,11 +214,14 @@ const Explore = () => {
               <div
                 key={apartment.id}
                 className="h-full snap-start snap-always relative"
-                style={{ minHeight: 'calc(100vh - 180px)' }}
+                style={{
+                  minHeight: "calc(100vh - 200px)",
+                  animationDelay: `${index * 80}ms`,
+                }}
               >
-                <ExternalApartmentCard 
-                  apartment={apartment} 
-                  isActive={index === currentIndex} 
+                <ExternalApartmentCard
+                  apartment={apartment}
+                  isActive={index === currentIndex}
                 />
               </div>
             ))}
