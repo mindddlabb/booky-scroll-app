@@ -80,7 +80,8 @@ const ApartmentCard = ({
       <div className="relative w-full h-full">
         {/* Media Carousel - Full Screen */}
         <Carousel className="w-full h-full" opts={{
-        dragFree: true
+        dragFree: true,
+        watchDrag: false
       }}>
           <CarouselContent className="touch-pan-y">
             {apartment.media.length > 0 ? apartment.media.filter(media => media.type === "image").map((media, index) => <CarouselItem key={index} className="h-screen">
