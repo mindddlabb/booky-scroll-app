@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
-import QuickInfoModal from "./QuickInfoModal";
+
 import { useNavigate } from "react-router-dom";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 interface ApartmentCardProps {
@@ -22,7 +22,7 @@ const ApartmentCard = ({
   const dispatch = useAppDispatch();
   const favoriteIds = useAppSelector(state => state.favorites.apartmentIds);
   const isFavorite = favoriteIds.includes(apartment.id);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -112,8 +112,8 @@ const ApartmentCard = ({
 
 
         {/* Bottom Info Preview */}
-        <div className="absolute bottom-6 left-6 right-6 text-white pointer-events-none" onClick={() => setIsSheetOpen(true)}>
-          <div className="space-y-2 pointer-events-auto cursor-pointer px-0 py-[50px]">
+        <div className="absolute bottom-6 left-6 right-6 text-white pointer-events-none">
+          <div className="space-y-2 pointer-events-auto px-0 py-[50px]">
             <div className="flex items-center gap-2">
               {apartment.averageRating > 0 && <Badge className="bg-black/50 backdrop-blur-sm border-white/20">
                   <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
@@ -154,8 +154,6 @@ const ApartmentCard = ({
         </div>
       </div>
 
-      {/* Quick Info Bottom Sheet */}
-      <QuickInfoModal apartment={apartment} open={isSheetOpen} onOpenChange={setIsSheetOpen} />
     </>;
 };
 export default ApartmentCard;
