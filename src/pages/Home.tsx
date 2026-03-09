@@ -247,22 +247,6 @@ const Home = () => {
                 }}
               />
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setFilterModalOpen(true)}
-              className="relative shrink-0"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {activeFilterCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px]"
-                >
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
           </div>
         ) : (
           <Button
