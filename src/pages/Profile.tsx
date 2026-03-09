@@ -44,6 +44,7 @@ const Profile = () => {
     (Booking & { apartments: Apartment })[]
   >([]);
   const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
   const [listings, setListings] = useState<Apartment[]>([]);
   const [totalBookings, setTotalBookings] = useState(0);
 
