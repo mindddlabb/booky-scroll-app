@@ -22,6 +22,7 @@ import ApartmentDetail from "./pages/ApartmentDetail";
 import Favorites from "./pages/Favorites";
 import BottomNav from "./components/BottomNav";
 import OfflineBanner from "./components/OfflineBanner";
+import AIConcierge from "./components/AIConcierge";
 import { ScrollToTop } from "./components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 
@@ -103,6 +104,7 @@ const AppRoutes = () => {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showBottomNav && <BottomNav />}
+      {isAuthenticated && <AIConcierge />}
     </>
   );
 };
