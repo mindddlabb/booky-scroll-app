@@ -42,6 +42,7 @@ const Chat = () => {
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [resolvedOtherUserId, setResolvedOtherUserId] = useState<string | undefined>(state?.otherUserId);
+  const [resolvedApartmentId, setResolvedApartmentId] = useState<string | undefined>(state?.apartmentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +50,7 @@ const Chat = () => {
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const otherUserId = resolvedOtherUserId;
-  const apartmentId = state?.apartmentId;
+  const apartmentId = resolvedApartmentId;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
