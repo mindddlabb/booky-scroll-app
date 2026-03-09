@@ -22,8 +22,7 @@ const Home = () => {
   const [externalApartments, setExternalApartments] = useState<ExternalApartment[]>([]);
   const [mixedListings, setMixedListings] = useState<MixedListing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
