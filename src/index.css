@@ -96,7 +96,20 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
+}
+
+/* Safe area utilities */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Hide scrollbar for vertical scroll */
