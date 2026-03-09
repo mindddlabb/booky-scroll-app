@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.search-external-apartments]
 verify_jwt = false
+
+[functions.checkin-reminder]
+verify_jwt = false

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Apartment, ExternalApartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
+import ApartmentCardSkeleton from "@/components/ApartmentCardSkeleton";
 import ExternalApartmentCard from "@/components/ExternalApartmentCard";
-import { Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { Loader2, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setFavorites } from "@/store/favoritesSlice";
@@ -29,6 +30,13 @@ const Home = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Pull-to-refresh state
+  const [pulling, setPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const startY = useRef(0);
+  const PULL_THRESHOLD = 80;
+
   const activeFilterCount = [
     filters.city,
     filters.bedrooms,
@@ -47,16 +55,12 @@ const Home = () => {
   const fetchFavorites = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) return;
-
       const { data, error } = await supabase
         .from("favorites")
         .select("apartment_id")
         .eq("user_id", user.id);
-
       if (error) throw error;
-
       const favoriteIds = data?.map((fav) => fav.apartment_id) || [];
       dispatch(setFavorites(favoriteIds));
     } catch (error: any) {
@@ -71,47 +75,24 @@ const Home = () => {
         .select("*")
         .eq("availability_status", "available");
 
-      // Apply filters
       if (filters.searchQuery) {
         query = query.or(
           `name.ilike.%${filters.searchQuery}%,address.ilike.%${filters.searchQuery}%,city.ilike.%${filters.searchQuery}%`
         );
       }
-
-      if (filters.city) {
-        query = query.eq("city", filters.city);
-      }
-
-      if (filters.priceMin > 0) {
-        query = query.gte("price_per_night", filters.priceMin);
-      }
-
-      if (filters.priceMax < 10000) {
-        query = query.lte("price_per_night", filters.priceMax);
-      }
-
-      if (filters.bedrooms) {
-        query = query.gte("bedrooms", filters.bedrooms);
-      }
-
-      if (filters.bathrooms) {
-        query = query.gte("bathrooms", filters.bathrooms);
-      }
-
-      if (filters.amenities.length > 0) {
-        query = query.contains("amenities", filters.amenities);
-      }
-
+      if (filters.city) query = query.eq("city", filters.city);
+      if (filters.priceMin > 0) query = query.gte("price_per_night", filters.priceMin);
+      if (filters.priceMax < 10000) query = query.lte("price_per_night", filters.priceMax);
+      if (filters.bedrooms) query = query.gte("bedrooms", filters.bedrooms);
+      if (filters.bathrooms) query = query.gte("bathrooms", filters.bathrooms);
+      if (filters.amenities.length > 0) query = query.contains("amenities", filters.amenities);
       query = query.order("created_at", { ascending: false });
 
       const { data, error } = await query;
-
       if (error) throw error;
 
-      // Transform database format to app format
       const transformedApartments: Apartment[] = (data || []).map((apt) => {
         const mediaArray = Array.isArray(apt.media) ? apt.media as any[] : [];
-        
         return {
           id: apt.id,
           listerId: apt.lister_id,
@@ -152,13 +133,11 @@ const Home = () => {
   };
 
   const fetchExternalApartments = async () => {
-    // Only fetch external apartments if we have a city filter or search query
     const location = filters.city || filters.searchQuery;
     if (!location) {
       setExternalApartments([]);
       return;
     }
-
     try {
       const result = await externalApartmentsApi.search(location, filters.searchQuery);
       if (result.success && result.apartments) {
@@ -169,49 +148,70 @@ const Home = () => {
     }
   };
 
-  // Mix external apartments into the feed (every 3-4 local listings)
+  // Mix external apartments into the feed
   useEffect(() => {
     if (apartments.length === 0) {
       setMixedListings([]);
       return;
     }
-
     const mixed: MixedListing[] = [];
     let externalIndex = 0;
-
     apartments.forEach((apt, index) => {
       mixed.push({ ...apt, isExternal: false });
-      
-      // Insert an external listing every 3-4 apartments if available
       if ((index + 1) % 4 === 0 && externalIndex < externalApartments.length) {
         mixed.push(externalApartments[externalIndex]);
         externalIndex++;
       }
     });
-
-    // Add remaining external apartments at the end
     while (externalIndex < externalApartments.length && externalIndex < 3) {
       mixed.push(externalApartments[externalIndex]);
       externalIndex++;
     }
-
     setMixedListings(mixed);
   }, [apartments, externalApartments]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
-    
     const scrollTop = containerRef.current.scrollTop;
     const windowHeight = window.innerHeight;
     const newIndex = Math.round(scrollTop / windowHeight);
-    
     setCurrentIndex(newIndex);
   };
 
+  // Pull-to-refresh handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (containerRef.current && containerRef.current.scrollTop <= 0) {
+      startY.current = e.touches[0].clientY;
+      setPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!pulling || refreshing) return;
+    const diff = Math.max(0, e.touches[0].clientY - startY.current);
+    setPullDistance(Math.min(diff * 0.5, PULL_THRESHOLD * 1.5));
+  }, [pulling, refreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (!pulling) return;
+    setPulling(false);
+    if (pullDistance >= PULL_THRESHOLD) {
+      setRefreshing(true);
+      try {
+        await Promise.all([fetchApartments(), fetchFavorites(), fetchExternalApartments()]);
+        toast.success("Feed refreshed");
+      } finally {
+        setRefreshing(false);
+      }
+    }
+    setPullDistance(0);
+  }, [pulling, pullDistance]);
+
+  // Skeleton loading state
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-screen overflow-hidden">
+        <ApartmentCardSkeleton />
       </div>
     );
   }
@@ -231,6 +231,21 @@ const Home = () => {
 
   return (
     <>
+      {/* Pull-to-refresh indicator */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-center transition-all duration-200 pt-safe"
+          style={{ height: refreshing ? 56 : pullDistance }}
+        >
+          <div className={`bg-background/90 backdrop-blur-sm rounded-full p-2 shadow-lg ${refreshing ? 'animate-spin' : ''}`}>
+            <RefreshCw
+              className={`w-5 h-5 text-primary transition-transform ${pullDistance >= PULL_THRESHOLD ? 'text-primary' : 'text-muted-foreground'}`}
+              style={{ transform: refreshing ? undefined : `rotate(${pullDistance * 3}deg)` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Minimal Search Bar */}
       <div className="fixed top-4 left-4 right-4 z-50 pt-safe">
         {searchExpanded ? (
@@ -244,9 +259,7 @@ const Home = () => {
                 onChange={(e) => dispatch(setSearchQuery(e.target.value))}
                 className="pl-9 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 onBlur={() => {
-                  if (!filters.searchQuery) {
-                    setSearchExpanded(false);
-                  }
+                  if (!filters.searchQuery) setSearchExpanded(false);
                 }}
               />
             </div>
@@ -286,15 +299,15 @@ const Home = () => {
       <div
         ref={containerRef}
         onScroll={handleScroll}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
         style={{ scrollBehavior: "smooth" }}
       >
         {mixedListings.length > 0 ? (
           mixedListings.map((listing, index) => (
-            <div
-              key={listing.id}
-              className="h-screen snap-start snap-always relative"
-            >
+            <div key={listing.id} className="h-screen snap-start snap-always relative">
               {listing.isExternal ? (
                 <ExternalApartmentCard apartment={listing} isActive={index === currentIndex} />
               ) : (
@@ -304,17 +317,13 @@ const Home = () => {
           ))
         ) : (
           apartments.map((apartment, index) => (
-            <div
-              key={apartment.id}
-              className="h-screen snap-start snap-always relative"
-            >
+            <div key={apartment.id} className="h-screen snap-start snap-always relative">
               <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
             </div>
           ))
         )}
       </div>
 
-      {/* Filter Modal */}
       <FilterModal
         open={filterModalOpen}
         onOpenChange={setFilterModalOpen}

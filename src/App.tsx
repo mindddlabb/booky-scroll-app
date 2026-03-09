@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import ApartmentDetail from "./pages/ApartmentDetail";
 import Favorites from "./pages/Favorites";
 import BottomNav from "./components/BottomNav";
+import OfflineBanner from "./components/OfflineBanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const AppRoutes = () => {
 
   return (
     <>
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/home" replace /> : <Welcome />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} />
