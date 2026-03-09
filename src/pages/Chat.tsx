@@ -41,13 +41,13 @@ const Chat = () => {
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const [resolvedOtherUserId, setResolvedOtherUserId] = useState<string | undefined>(state?.otherUserId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  const otherUserId = state?.otherUserId;
   const apartmentId = state?.apartmentId;
 
   const scrollToBottom = () => {
