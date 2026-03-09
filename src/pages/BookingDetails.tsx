@@ -256,7 +256,11 @@ const BookingDetails = () => {
 
           {/* Actions */}
           <div className="space-y-2">
-            <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => navigate("/inbox")}>
+            <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => {
+              const ids = [currentUser.id, booking.user_id].sort();
+              const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+              navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });
+            }}>
               <MessageCircle className="w-4 h-4" /> Message Guest
             </Button>
             <Button variant="outline" className="w-full rounded-2xl gap-2" size="lg" onClick={() => toast.info("Report issue coming soon")}>
