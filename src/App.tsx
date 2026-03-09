@@ -104,6 +104,7 @@ const AppRoutes = () => {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showBottomNav && <BottomNav />}
+      {isAuthenticated && <AIConcierge />}
     </>
   );
 };
