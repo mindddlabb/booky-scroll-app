@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Send, Image as ImageIcon, X, Loader2 } from "lucide-react";
@@ -39,9 +39,13 @@ const Chat = () => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [isOtherOnline, setIsOtherOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const otherUserId = state?.otherUserId;
   const apartmentId = state?.apartmentId;
@@ -49,6 +53,57 @@ const Chat = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Presence & typing channel
+  useEffect(() => {
+    if (!conversationId || !currentUserId) return;
+
+    const channel = supabase.channel(`presence-${conversationId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const presenceState = channel.presenceState();
+        // Check if other user is online
+        const otherPresent = otherUserId ? !!presenceState[otherUserId] : false;
+        setIsOtherOnline(otherPresent);
+
+        // Check typing status
+        if (otherUserId && presenceState[otherUserId]) {
+          const otherState = presenceState[otherUserId] as any[];
+          const isTyping = otherState.some((s: any) => s.typing === true);
+          setIsOtherTyping(isTyping);
+        } else {
+          setIsOtherTyping(false);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online: true, typing: false });
+        }
+      });
+
+    presenceChannelRef.current = channel;
+
+    return () => {
+      channel.untrack();
+      supabase.removeChannel(channel);
+      presenceChannelRef.current = null;
+    };
+  }, [conversationId, currentUserId, otherUserId]);
+
+  const broadcastTyping = useCallback((typing: boolean) => {
+    presenceChannelRef.current?.track({ online: true, typing });
+  }, []);
+
+  const handleTyping = useCallback(() => {
+    broadcastTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      broadcastTyping(false);
+    }, 2000);
+  }, [broadcastTyping]);
 
   useEffect(() => {
     const init = async () => {
@@ -83,11 +138,7 @@ const Chat = () => {
       .eq("conversation_id", conversationId)
       .order("sent_at", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching messages:", error);
-      return;
-    }
-
+    if (error) { console.error("Error fetching messages:", error); return; }
     setMessages(data || []);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -101,72 +152,47 @@ const Chat = () => {
     }
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
+  // Real-time messages
   useEffect(() => {
     if (!conversationId) return;
 
     const channel = supabase
       .channel(`chat-${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages((prev) => {
-            if (prev.find((m) => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-
-          if (currentUserId && newMsg.receiver_id === currentUserId) {
-            supabase
-              .from("messages")
-              .update({ read_status: true })
-              .eq("id", newMsg.id);
-          }
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        const newMsg = payload.new as Message;
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+        if (currentUserId && newMsg.receiver_id === currentUserId) {
+          supabase.from("messages").update({ read_status: true }).eq("id", newMsg.id);
         }
-      )
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [conversationId, currentUserId]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
-    if (imageFiles.length === 0) {
-      toast.error("Please select image files only");
-      return;
-    }
-
-    const total = selectedImages.length + imageFiles.length;
-    if (total > 5) {
-      toast.error("Maximum 5 images per message");
-      return;
-    }
+    if (imageFiles.length === 0) { toast.error("Please select image files only"); return; }
+    if (selectedImages.length + imageFiles.length > 5) { toast.error("Maximum 5 images per message"); return; }
 
     setSelectedImages((prev) => [...prev, ...imageFiles]);
-
     imageFiles.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        setImagePreviews((prev) => [...prev, ev.target?.result as string]);
-      };
+      reader.onload = (ev) => setImagePreviews((prev) => [...prev, ev.target?.result as string]);
       reader.readAsDataURL(file);
     });
-
-    // Reset input so same file can be selected again
     e.target.value = "";
   };
 
@@ -177,30 +203,17 @@ const Chat = () => {
 
   const uploadImages = async (userId: string): Promise<string[]> => {
     const urls: string[] = [];
-
     for (const file of selectedImages) {
       const compressed = await browserImageCompression(file, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
+        maxSizeMB: 1, maxWidthOrHeight: 1200, useWebWorker: true,
       });
-
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-      const { error } = await supabase.storage
-        .from("chat-images")
-        .upload(path, compressed, { contentType: compressed.type });
-
+      const { error } = await supabase.storage.from("chat-images").upload(path, compressed, { contentType: compressed.type });
       if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from("chat-images")
-        .getPublicUrl(path);
-
+      const { data: urlData } = supabase.storage.from("chat-images").getPublicUrl(path);
       urls.push(urlData.publicUrl);
     }
-
     return urls;
   };
 
@@ -213,10 +226,10 @@ const Chat = () => {
     setUploading(hasImages);
     const messageContent = newMessage.trim() || (hasImages ? "📷 Image" : "");
     setNewMessage("");
+    broadcastTyping(false);
 
     try {
       let mediaUrls: string[] | null = null;
-
       if (hasImages) {
         mediaUrls = await uploadImages(currentUserId);
         setSelectedImages([]);
@@ -231,8 +244,18 @@ const Chat = () => {
         apartment_id: apartmentId || null,
         media_urls: mediaUrls,
       });
-
       if (error) throw error;
+
+      // Fire-and-forget push notification
+      supabase.functions.invoke("notify-new-message", {
+        body: {
+          senderId: currentUserId,
+          receiverId: otherUserId,
+          messageContent,
+          conversationId,
+        },
+      }).catch((err) => console.log("Push notification skipped:", err));
+
     } catch (error: any) {
       toast.error("Failed to send message");
       setNewMessage(messageContent);
@@ -243,15 +266,16 @@ const Chat = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    handleTyping();
   };
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatDateSeparator = (dateStr: string) => {
@@ -259,7 +283,6 @@ const Chat = () => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-
     if (date.toDateString() === today.toDateString()) return "Today";
     if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
     return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
@@ -267,9 +290,7 @@ const Chat = () => {
 
   const shouldShowDateSeparator = (index: number) => {
     if (index === 0) return true;
-    const current = new Date(messages[index].sent_at).toDateString();
-    const previous = new Date(messages[index - 1].sent_at).toDateString();
-    return current !== previous;
+    return new Date(messages[index].sent_at).toDateString() !== new Date(messages[index - 1].sent_at).toDateString();
   };
 
   if (loading) {
@@ -284,20 +305,28 @@ const Chat = () => {
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-4 py-3 flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="shrink-0 rounded-full"
-          onClick={() => navigate("/inbox")}
-        >
+        <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => navigate("/inbox")}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <Avatar className="h-9 w-9">
-          <AvatarImage src={otherUserAvatar} />
-          <AvatarFallback>{otherUserName.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={otherUserAvatar} />
+            <AvatarFallback>{otherUserName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          {/* Online indicator */}
+          <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background transition-colors ${isOtherOnline ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+        </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-sm truncate">{otherUserName}</h2>
+          <p className="text-[11px] text-muted-foreground">
+            {isOtherTyping ? (
+              <span className="text-primary">typing...</span>
+            ) : isOtherOnline ? (
+              "Online"
+            ) : (
+              "Offline"
+            )}
+          </p>
         </div>
       </div>
 
@@ -321,43 +350,23 @@ const Chat = () => {
                   </div>
                 )}
                 <div className={`flex ${isMe ? "justify-end" : "justify-start"} mb-1`}>
-                  <div
-                    className={`max-w-[75%] rounded-2xl text-sm overflow-hidden ${
-                      isMe
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md"
-                    }`}
-                  >
-                    {/* Images */}
+                  <div className={`max-w-[75%] rounded-2xl text-sm overflow-hidden ${
+                    isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"
+                  }`}>
                     {hasMedia && (
-                      <div className={`grid gap-0.5 ${
-                        message.media_urls!.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                      }`}>
+                      <div className={`grid gap-0.5 ${message.media_urls!.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
                         {message.media_urls!.map((url, i) => (
-                          <img
-                            key={i}
-                            src={url}
-                            alt="Shared image"
-                            className="w-full h-auto max-h-48 object-cover cursor-pointer"
-                            loading="lazy"
-                            onClick={() => setExpandedImage(url)}
-                          />
+                          <img key={i} src={url} alt="Shared image" className="w-full h-auto max-h-48 object-cover cursor-pointer" loading="lazy" onClick={() => setExpandedImage(url)} />
                         ))}
                       </div>
                     )}
-                    {/* Text content (skip if it's just the placeholder emoji) */}
                     {message.content && message.content !== "📷 Image" && (
                       <p className="whitespace-pre-wrap break-words px-3.5 py-2">{message.content}</p>
                     )}
-                    {/* Only show placeholder if no images rendered */}
-                    {message.content && message.content === "📷 Image" && !hasMedia && (
+                    {message.content === "📷 Image" && !hasMedia && (
                       <p className="whitespace-pre-wrap break-words px-3.5 py-2">{message.content}</p>
                     )}
-                    <p
-                      className={`text-[10px] px-3.5 pb-1.5 ${hasMedia && (!message.content || message.content === "📷 Image") ? "pt-1" : ""} ${
-                        isMe ? "text-primary-foreground/70" : "text-muted-foreground"
-                      }`}
-                    >
+                    <p className={`text-[10px] px-3.5 pb-1.5 ${hasMedia && (!message.content || message.content === "📷 Image") ? "pt-1" : ""} ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {formatTime(message.sent_at)}
                     </p>
                   </div>
@@ -365,6 +374,17 @@ const Chat = () => {
               </div>
             );
           })
+        )}
+
+        {/* Typing indicator bubble */}
+        {isOtherTyping && (
+          <div className="flex justify-start mb-1">
+            <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -375,15 +395,8 @@ const Chat = () => {
           <div className="flex gap-2 overflow-x-auto">
             {imagePreviews.map((preview, i) => (
               <div key={i} className="relative shrink-0">
-                <img
-                  src={preview}
-                  alt={`Preview ${i + 1}`}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-                <button
-                  onClick={() => removeImage(i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
-                >
+                <img src={preview} alt={`Preview ${i + 1}`} className="w-16 h-16 rounded-lg object-cover" />
+                <button onClick={() => removeImage(i)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -395,66 +408,31 @@ const Chat = () => {
       {/* Input */}
       <div className="sticky bottom-0 bg-background border-t px-4 py-3 pb-safe">
         <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 rounded-full"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending}
-          >
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
+          <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => fileInputRef.current?.click()} disabled={sending}>
             <ImageIcon className="w-5 h-5 text-muted-foreground" />
           </Button>
           <Input
             ref={inputRef}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             className="flex-1 rounded-full bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
           />
-          <Button
-            size="icon"
-            className="rounded-full shrink-0"
-            onClick={handleSend}
-            disabled={(!newMessage.trim() && selectedImages.length === 0) || sending}
-          >
-            {uploading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+          <Button size="icon" className="rounded-full shrink-0" onClick={handleSend} disabled={(!newMessage.trim() && selectedImages.length === 0) || sending}>
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </div>
 
       {/* Expanded Image Modal */}
       {expandedImage && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setExpandedImage(null)}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full"
-            onClick={() => setExpandedImage(null)}
-          >
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setExpandedImage(null)}>
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full" onClick={() => setExpandedImage(null)}>
             <X className="w-6 h-6" />
           </Button>
-          <img
-            src={expandedImage}
-            alt="Expanded"
-            className="max-w-full max-h-full object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <img src={expandedImage} alt="Expanded" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>
