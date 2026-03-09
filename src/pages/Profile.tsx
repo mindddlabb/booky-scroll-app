@@ -22,6 +22,9 @@ import {
   Building2,
   Home,
   Award,
+  Heart,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
