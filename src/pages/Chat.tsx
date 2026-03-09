@@ -42,6 +42,7 @@ const Chat = () => {
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
   const [resolvedOtherUserId, setResolvedOtherUserId] = useState<string | undefined>(state?.otherUserId);
+  const [resolvedApartmentId, setResolvedApartmentId] = useState<string | undefined>(state?.apartmentId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +50,7 @@ const Chat = () => {
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const otherUserId = resolvedOtherUserId;
-  const apartmentId = state?.apartmentId;
+  const apartmentId = resolvedApartmentId;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,16 +113,28 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      // Resolve otherUserId from state, conversation id, or existing messages
+      // Resolve otherUserId and apartmentId from state or conversation ID
       let resolvedId = state?.otherUserId;
+      let resolvedApt = state?.apartmentId;
 
-      if (!resolvedId && conversationId) {
-        const [firstUserId, secondUserId] = conversationId.split("_");
-        if (firstUserId && secondUserId) {
-          resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+      // Parse conversation ID format: sortedUserId1_sortedUserId2_apartmentId
+      if (conversationId) {
+        const parts = conversationId.split("_");
+        if (parts.length >= 3) {
+          const [firstUserId, secondUserId, ...aptParts] = parts;
+          const aptId = aptParts.join("_"); // rejoin in case apartment ID somehow has underscores
+          if (!resolvedId) {
+            resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+          }
+          if (!resolvedApt && aptId) {
+            resolvedApt = aptId;
+          }
+        } else if (parts.length === 2 && !resolvedId) {
+          resolvedId = parts[0] === user.id ? parts[1] : parts[0];
         }
       }
 
+      // Fallback: resolve from existing messages
       if (!resolvedId && conversationId) {
         const { data: existingMsg } = await supabase
           .from("messages")
@@ -132,6 +145,10 @@ const Chat = () => {
         if (existingMsg) {
           resolvedId = existingMsg.sender_id === user.id ? existingMsg.receiver_id : existingMsg.sender_id;
         }
+      }
+
+      if (resolvedApt) {
+        setResolvedApartmentId(resolvedApt);
       }
 
       if (resolvedId) {
@@ -244,7 +261,11 @@ const Chat = () => {
   const handleSend = async () => {
     const hasText = newMessage.trim().length > 0;
     const hasImages = selectedImages.length > 0;
-    if ((!hasText && !hasImages) || !currentUserId || !otherUserId || !conversationId) return;
+    if ((!hasText && !hasImages) || !currentUserId || !conversationId) return;
+    if (!otherUserId) {
+      toast.error("Unable to identify recipient. Please go back and try again.");
+      return;
+    }
 
     setSending(true);
     setUploading(hasImages);
