@@ -242,7 +242,11 @@ const BookingDetails = () => {
                   <span>{guestProfile?.rating?.toFixed(1) || "New"}</span>
                 </div>
               </div>
-              <Button size="sm" onClick={() => navigate("/inbox")} className="rounded-xl gap-1.5">
+              <Button size="sm" onClick={() => {
+                const ids = [currentUser.id, booking.user_id].sort();
+                const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+                navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });
+              }} className="rounded-xl gap-1.5">
                 <MessageCircle className="w-3.5 h-3.5" /> Message
               </Button>
             </div>
