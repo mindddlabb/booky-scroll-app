@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Booking, Apartment } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ import {
   Building2,
   Home,
   Award,
+  Heart,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +44,7 @@ const Profile = () => {
     (Booking & { apartments: Apartment })[]
   >([]);
   const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
   const [listings, setListings] = useState<Apartment[]>([]);
   const [totalBookings, setTotalBookings] = useState(0);
 
@@ -281,6 +285,17 @@ const Profile = () => {
     } catch (error: any) { toast.error("Failed to logout"); }
   };
 
+  const handleDarkModeToggle = (checked: boolean) => {
+    setDarkMode(checked);
+    if (checked) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
   const fetchListings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -505,6 +520,8 @@ const Profile = () => {
         {/* Settings */}
         <Section title="Settings">
           <div className="space-y-1">
+            <SettingRow icon={<Heart className="w-5 h-5" />} label="Saved Places" onClick={() => navigate("/favorites")} />
+            <SettingRow icon={darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />} label="Dark Mode" right={<Switch checked={darkMode} onCheckedChange={handleDarkModeToggle} />} />
             <SettingRow icon={<Bell className="w-5 h-5" />} label="Notifications" right={<Switch checked={notifications} onCheckedChange={setNotifications} />} />
             <SettingRow icon={<Globe className="w-5 h-5" />} label="Language" right={<span className="text-xs text-muted-foreground">English</span>} />
             <SettingRow icon={<HelpCircle className="w-5 h-5" />} label="Help & Support" onClick={() => toast.info("Help & Support coming soon")} />
