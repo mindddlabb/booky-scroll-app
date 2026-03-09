@@ -117,7 +117,7 @@ const Bookings = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-20 pb-safe">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-5 py-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">My Bookings</h1>
