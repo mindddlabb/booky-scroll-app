@@ -302,7 +302,14 @@ const BookingDetails = () => {
 
         {/* Actions */}
         <div className="space-y-2">
-          <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => navigate("/inbox")}>
+          <Button className="w-full rounded-2xl gap-2" size="lg" onClick={async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { toast.error("Please login first"); return; }
+            const ids = [user.id, booking.lister_id].sort();
+            const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+            const { data: listerProfile } = await supabase.from("profiles").select("full_name").eq("id", booking.lister_id).single();
+            navigate(`/chat/${convId}`, { state: { otherUserId: booking.lister_id, otherUserName: listerProfile?.full_name || "Host", apartmentId: booking.apartment_id } });
+          }}>
             <MessageCircle className="w-4 h-4" /> Message Host
           </Button>
           <Button variant="outline" className="w-full rounded-2xl gap-2" size="lg" onClick={() => {
