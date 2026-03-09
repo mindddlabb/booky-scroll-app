@@ -242,7 +242,11 @@ const BookingDetails = () => {
                   <span>{guestProfile?.rating?.toFixed(1) || "New"}</span>
                 </div>
               </div>
-              <Button size="sm" onClick={() => navigate("/inbox")} className="rounded-xl gap-1.5">
+              <Button size="sm" onClick={() => {
+                const ids = [currentUser.id, booking.user_id].sort();
+                const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+                navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });
+              }} className="rounded-xl gap-1.5">
                 <MessageCircle className="w-3.5 h-3.5" /> Message
               </Button>
             </div>
@@ -252,7 +256,11 @@ const BookingDetails = () => {
 
           {/* Actions */}
           <div className="space-y-2">
-            <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => navigate("/inbox")}>
+            <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => {
+              const ids = [currentUser.id, booking.user_id].sort();
+              const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+              navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });
+            }}>
               <MessageCircle className="w-4 h-4" /> Message Guest
             </Button>
             <Button variant="outline" className="w-full rounded-2xl gap-2" size="lg" onClick={() => toast.info("Report issue coming soon")}>
@@ -294,7 +302,14 @@ const BookingDetails = () => {
 
         {/* Actions */}
         <div className="space-y-2">
-          <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => navigate("/inbox")}>
+          <Button className="w-full rounded-2xl gap-2" size="lg" onClick={async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { toast.error("Please login first"); return; }
+            const ids = [user.id, booking.lister_id].sort();
+            const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
+            const { data: listerProfile } = await supabase.from("profiles").select("full_name").eq("id", booking.lister_id).single();
+            navigate(`/chat/${convId}`, { state: { otherUserId: booking.lister_id, otherUserName: listerProfile?.full_name || "Host", apartmentId: booking.apartment_id } });
+          }}>
             <MessageCircle className="w-4 h-4" /> Message Host
           </Button>
           <Button variant="outline" className="w-full rounded-2xl gap-2" size="lg" onClick={() => {
