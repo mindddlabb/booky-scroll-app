@@ -243,6 +243,7 @@ const BookingDetails = () => {
                 </div>
               </div>
               <Button size="sm" onClick={() => {
+                if (!currentUser) { toast.error("Please login first"); return; }
                 const ids = [currentUser.id, booking.user_id].sort();
                 const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
                 navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });
@@ -257,6 +258,7 @@ const BookingDetails = () => {
           {/* Actions */}
           <div className="space-y-2">
             <Button className="w-full rounded-2xl gap-2" size="lg" onClick={() => {
+              if (!currentUser) { toast.error("Please login first"); return; }
               const ids = [currentUser.id, booking.user_id].sort();
               const convId = `${ids[0]}_${ids[1]}_${booking.apartment_id}`;
               navigate(`/chat/${convId}`, { state: { otherUserId: booking.user_id, otherUserName: guestProfile?.full_name || "Guest", apartmentId: booking.apartment_id } });

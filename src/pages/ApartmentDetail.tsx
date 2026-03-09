@@ -501,7 +501,7 @@ const ApartmentDetail = () => {
                 </div>
               ))}
               {apartment.totalReviews > 3 && (
-                <Button variant="ghost" className="w-full text-primary text-sm">
+                <Button variant="ghost" className="w-full text-primary text-sm" onClick={() => navigate(`/reviews/${apartment.id}`)}>
                   See all {apartment.totalReviews} reviews
                 </Button>
               )}

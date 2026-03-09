@@ -38,12 +38,13 @@ const Bookings = () => {
 
       if (error) throw error;
 
-      const transformedBookings: Booking[] = (data || []).map((booking) => ({
+      const transformedBookings: (Booking & { apartments?: any })[] = (data || []).map((booking) => ({
         id: booking.id, userId: booking.user_id, apartmentId: booking.apartment_id,
         listerId: booking.lister_id, checkInDateTime: booking.check_in_date_time,
         checkOutDateTime: booking.check_out_date_time, totalPrice: Number(booking.total_price),
         status: booking.status, paymentStatus: booking.payment_status,
         createdAt: booking.created_at, updatedAt: booking.updated_at,
+        apartments: booking.apartments,
       }));
 
       setBookings(transformedBookings);
