@@ -520,6 +520,8 @@ const Profile = () => {
         {/* Settings */}
         <Section title="Settings">
           <div className="space-y-1">
+            <SettingRow icon={<Heart className="w-5 h-5" />} label="Saved Places" onClick={() => navigate("/favorites")} />
+            <SettingRow icon={darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />} label="Dark Mode" right={<Switch checked={darkMode} onCheckedChange={handleDarkModeToggle} />} />
             <SettingRow icon={<Bell className="w-5 h-5" />} label="Notifications" right={<Switch checked={notifications} onCheckedChange={setNotifications} />} />
             <SettingRow icon={<Globe className="w-5 h-5" />} label="Language" right={<span className="text-xs text-muted-foreground">English</span>} />
             <SettingRow icon={<HelpCircle className="w-5 h-5" />} label="Help & Support" onClick={() => toast.info("Help & Support coming soon")} />
