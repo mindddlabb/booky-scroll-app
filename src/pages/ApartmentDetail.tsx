@@ -187,6 +187,26 @@ const ApartmentDetail = () => {
     } catch (error: any) { toast.error(error.message || "Failed to update favorites"); }
   };
 
+  const handleMessageHost = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !apartment) { toast.error("Please login first"); return; }
+
+      const ids = [user.id, apartment.listerId].sort();
+      const conversationId = `${ids[0]}_${ids[1]}_${apartment.id}`;
+
+      navigate(`/chat/${conversationId}`, {
+        state: {
+          otherUserId: apartment.listerId,
+          otherUserName: listerProfile?.full_name || "Host",
+          apartmentId: apartment.id,
+        },
+      });
+    } catch (error: any) {
+      toast.error("Failed to start conversation");
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
