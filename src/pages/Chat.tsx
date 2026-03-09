@@ -41,13 +41,14 @@ const Chat = () => {
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
+  const [resolvedOtherUserId, setResolvedOtherUserId] = useState<string | undefined>(state?.otherUserId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  const otherUserId = state?.otherUserId;
+  const otherUserId = resolvedOtherUserId;
   const apartmentId = state?.apartmentId;
 
   const scrollToBottom = () => {
@@ -111,11 +112,26 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      if (otherUserId) {
+      // Resolve otherUserId from state or from existing messages
+      let resolvedId = state?.otherUserId;
+      if (!resolvedId && conversationId) {
+        const { data: existingMsg } = await supabase
+          .from("messages")
+          .select("sender_id, receiver_id")
+          .eq("conversation_id", conversationId)
+          .limit(1)
+          .single();
+        if (existingMsg) {
+          resolvedId = existingMsg.sender_id === user.id ? existingMsg.receiver_id : existingMsg.sender_id;
+        }
+      }
+
+      if (resolvedId) {
+        setResolvedOtherUserId(resolvedId);
         const { data: profile } = await supabase
           .from("profiles")
           .select("full_name, profile_picture")
-          .eq("id", otherUserId)
+          .eq("id", resolvedId)
           .single();
         if (profile) {
           setOtherUserName(profile.full_name);
