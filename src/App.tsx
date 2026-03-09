@@ -19,6 +19,7 @@ import Inbox from "./pages/Inbox";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import ApartmentDetail from "./pages/ApartmentDetail";
+import Favorites from "./pages/Favorites";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 
