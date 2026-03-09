@@ -92,6 +92,7 @@ const AppRoutes = () => {
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
         <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
         <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
         <Route path="/listing/new" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
         <Route path="/listing/edit/:id" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
