@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Booking, Apartment } from "@/types";
 import { Button } from "@/components/ui/button";
