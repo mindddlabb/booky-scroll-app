@@ -372,7 +372,11 @@ const ApartmentDetail = () => {
                 </div>
               </div>
             </div>
-            <Button variant="outline" className="w-full gap-2 rounded-xl">
+            <Button
+              variant="outline"
+              className="w-full gap-2 rounded-xl"
+              onClick={handleMessageHost}
+            >
               <MessageCircle className="w-4 h-4" />
               Message Host
             </Button>

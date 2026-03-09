@@ -85,6 +85,7 @@ const AppRoutes = () => {
         <Route path="/booking/:id" element={<ProtectedRoute><BookingDetails /></ProtectedRoute>} />
         <Route path="/reviews/:apartmentId" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+        <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
         <Route path="/listing/new" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
