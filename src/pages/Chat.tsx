@@ -326,7 +326,7 @@ const Chat = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => navigate("/inbox")}>
