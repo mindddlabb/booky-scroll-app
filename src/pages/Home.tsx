@@ -23,7 +23,6 @@ const Home = () => {
   const [mixedListings, setMixedListings] = useState<MixedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
