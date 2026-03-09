@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
+import Autoplay from "embla-carousel-autoplay";
 
 import { useNavigate } from "react-router-dom";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
