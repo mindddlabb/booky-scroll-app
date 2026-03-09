@@ -113,16 +113,28 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      // Resolve otherUserId from state, conversation id, or existing messages
+      // Resolve otherUserId and apartmentId from state or conversation ID
       let resolvedId = state?.otherUserId;
+      let resolvedApt = state?.apartmentId;
 
-      if (!resolvedId && conversationId) {
-        const [firstUserId, secondUserId] = conversationId.split("_");
-        if (firstUserId && secondUserId) {
-          resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+      // Parse conversation ID format: sortedUserId1_sortedUserId2_apartmentId
+      if (conversationId) {
+        const parts = conversationId.split("_");
+        if (parts.length >= 3) {
+          const [firstUserId, secondUserId, ...aptParts] = parts;
+          const aptId = aptParts.join("_"); // rejoin in case apartment ID somehow has underscores
+          if (!resolvedId) {
+            resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+          }
+          if (!resolvedApt && aptId) {
+            resolvedApt = aptId;
+          }
+        } else if (parts.length === 2 && !resolvedId) {
+          resolvedId = parts[0] === user.id ? parts[1] : parts[0];
         }
       }
 
+      // Fallback: resolve from existing messages
       if (!resolvedId && conversationId) {
         const { data: existingMsg } = await supabase
           .from("messages")
@@ -133,6 +145,10 @@ const Chat = () => {
         if (existingMsg) {
           resolvedId = existingMsg.sender_id === user.id ? existingMsg.receiver_id : existingMsg.sender_id;
         }
+      }
+
+      if (resolvedApt) {
+        setResolvedApartmentId(resolvedApt);
       }
 
       if (resolvedId) {
