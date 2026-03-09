@@ -20,6 +20,7 @@ import {
   Carousel, CarouselContent, CarouselItem,
 } from "@/components/ui/carousel";
 import type { CarouselApi } from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
 import { BookingConfirmationDialog } from "@/components/BookingConfirmationDialog";
 import { BookingSuccessDialog } from "@/components/BookingSuccessDialog";
 import GalleryView from "@/components/GalleryView";
