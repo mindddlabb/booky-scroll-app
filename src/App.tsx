@@ -16,6 +16,7 @@ import BookingDetails from "./pages/BookingDetails";
 import Reviews from "./pages/Reviews";
 import ListingForm from "./pages/ListingForm";
 import Inbox from "./pages/Inbox";
+import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import ApartmentDetail from "./pages/ApartmentDetail";
 import BottomNav from "./components/BottomNav";
@@ -69,7 +70,7 @@ const AppRoutes = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const showBottomNav = isAuthenticated && !["/", "/login", "/register"].includes(window.location.pathname);
+  const showBottomNav = isAuthenticated && !["/", "/login", "/register"].includes(window.location.pathname) && !window.location.pathname.startsWith("/chat/");
 
   return (
     <>
@@ -84,6 +85,7 @@ const AppRoutes = () => {
         <Route path="/booking/:id" element={<ProtectedRoute><BookingDetails /></ProtectedRoute>} />
         <Route path="/reviews/:apartmentId" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+        <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/apartment/:id" element={<ProtectedRoute><ApartmentDetail /></ProtectedRoute>} />
         <Route path="/listing/new" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
