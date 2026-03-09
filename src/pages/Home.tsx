@@ -11,8 +11,6 @@ import { setFavorites } from "@/store/favoritesSlice";
 import { setSearchQuery } from "@/store/filterSlice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import FilterModal from "@/components/FilterModal";
 import { externalApartmentsApi } from "@/lib/api/externalApartments";
 
 type MixedListing = (Apartment & { isExternal?: false }) | ExternalApartment;
