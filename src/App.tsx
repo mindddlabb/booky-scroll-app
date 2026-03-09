@@ -16,6 +16,7 @@ import BookingDetails from "./pages/BookingDetails";
 import Reviews from "./pages/Reviews";
 import ListingForm from "./pages/ListingForm";
 import Inbox from "./pages/Inbox";
+import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import ApartmentDetail from "./pages/ApartmentDetail";
 import BottomNav from "./components/BottomNav";
