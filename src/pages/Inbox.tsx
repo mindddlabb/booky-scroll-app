@@ -80,6 +80,22 @@ const Inbox = () => {
 
   useEffect(() => { fetchConversations(); }, []);
 
+  // Realtime: refresh conversations when new messages arrive
+  useEffect(() => {
+    const channel = supabase
+      .channel("inbox-realtime")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      }, () => {
+        fetchConversations();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredConversations(conversations);
