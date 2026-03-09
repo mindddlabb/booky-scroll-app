@@ -48,6 +48,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppRoutes = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     // Initialize OneSignal
@@ -70,7 +71,10 @@ const AppRoutes = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const showBottomNav = isAuthenticated && !["/", "/login", "/register"].includes(window.location.pathname) && !window.location.pathname.startsWith("/chat/");
+  const showBottomNav =
+    isAuthenticated &&
+    !["/", "/login", "/register"].includes(location.pathname) &&
+    !location.pathname.startsWith("/chat/");
 
   return (
     <>

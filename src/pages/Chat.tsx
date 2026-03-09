@@ -430,7 +430,7 @@ const Chat = () => {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-0 bg-background border-t px-4 py-3 pb-safe">
+      <div className="sticky bottom-0 z-20 bg-background border-t px-4 py-3 pb-safe">
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
           <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => fileInputRef.current?.click()} disabled={sending}>

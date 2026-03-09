@@ -513,7 +513,7 @@ const ApartmentDetail = () => {
       </div>
 
       {/* Fixed Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t px-5 py-4 pb-safe">
+      <div className="fixed bottom-16 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t px-5 py-4 pb-safe">
         <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
           <div>
             <div className="text-xl font-bold leading-tight">
