@@ -276,11 +276,7 @@ const Home = () => {
         {mixedListings.length > 0 ? (
           mixedListings.map((listing, index) => (
             <div key={listing.id} className="h-screen snap-start snap-always relative">
-              {listing.isExternal ? (
-                <ExternalApartmentCard apartment={listing} isActive={index === currentIndex} />
-              ) : (
-                <ApartmentCard apartment={listing as Apartment} isActive={index === currentIndex} />
-              )}
+              <ApartmentCard apartment={listing as Apartment} isActive={true} />
             </div>
           ))
         ) : (
