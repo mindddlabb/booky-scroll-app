@@ -261,7 +261,11 @@ const Chat = () => {
   const handleSend = async () => {
     const hasText = newMessage.trim().length > 0;
     const hasImages = selectedImages.length > 0;
-    if ((!hasText && !hasImages) || !currentUserId || !otherUserId || !conversationId) return;
+    if ((!hasText && !hasImages) || !currentUserId || !conversationId) return;
+    if (!otherUserId) {
+      toast.error("Unable to identify recipient. Please go back and try again.");
+      return;
+    }
 
     setSending(true);
     setUploading(hasImages);
