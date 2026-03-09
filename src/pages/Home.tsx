@@ -34,15 +34,6 @@ const Home = () => {
   const startY = useRef(0);
   const PULL_THRESHOLD = 80;
 
-  const activeFilterCount = [
-    filters.city,
-    filters.bedrooms,
-    filters.bathrooms,
-    filters.amenities.length > 0,
-    filters.checkInDate,
-    filters.priceMin > 0 || filters.priceMax < 10000,
-  ].filter(Boolean).length;
-
   useEffect(() => {
     fetchApartments();
     fetchFavorites();
