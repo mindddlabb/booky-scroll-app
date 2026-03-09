@@ -107,7 +107,7 @@ const Explore = () => {
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b px-5 pt-5 pb-4">
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b px-5 pt-5 pb-4 pt-safe">
         <div className="animate-fade-in space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">

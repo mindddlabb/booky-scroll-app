@@ -232,7 +232,7 @@ const Home = () => {
   return (
     <>
       {/* Minimal Search Bar */}
-      <div className="fixed top-4 left-4 right-4 z-50">
+      <div className="fixed top-4 left-4 right-4 z-50 pt-safe">
         {searchExpanded ? (
           <div className="flex items-center gap-2 bg-background/95 backdrop-blur-md rounded-full border shadow-lg p-2 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="relative flex-1">

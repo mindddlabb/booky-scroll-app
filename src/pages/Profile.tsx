@@ -342,7 +342,7 @@ const Profile = () => {
   const memberSince = format(new Date(profile.createdAt), "MMM yyyy");
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 pb-safe">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Profile</h1>
