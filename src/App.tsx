@@ -70,7 +70,7 @@ const AppRoutes = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const showBottomNav = isAuthenticated && !["/", "/login", "/register"].includes(window.location.pathname);
+  const showBottomNav = isAuthenticated && !["/", "/login", "/register"].includes(window.location.pathname) && !window.location.pathname.startsWith("/chat/");
 
   return (
     <>
