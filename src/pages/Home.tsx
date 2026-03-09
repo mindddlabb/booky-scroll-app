@@ -159,11 +159,7 @@ const Home = () => {
   }, [apartments, externalApartments]);
 
   const handleScroll = () => {
-    if (!containerRef.current) return;
-    const scrollTop = containerRef.current.scrollTop;
-    const windowHeight = window.innerHeight;
-    const newIndex = Math.round(scrollTop / windowHeight);
-    setCurrentIndex(newIndex);
+    // scroll tracking if needed
   };
 
   // Pull-to-refresh handlers
