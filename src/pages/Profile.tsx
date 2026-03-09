@@ -285,6 +285,17 @@ const Profile = () => {
     } catch (error: any) { toast.error("Failed to logout"); }
   };
 
+  const handleDarkModeToggle = (checked: boolean) => {
+    setDarkMode(checked);
+    if (checked) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
   const fetchListings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
