@@ -4,7 +4,7 @@ import { Apartment, ExternalApartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
 import ApartmentCardSkeleton from "@/components/ApartmentCardSkeleton";
 import ExternalApartmentCard from "@/components/ExternalApartmentCard";
-import { Loader2, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { Loader2, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setFavorites } from "@/store/favoritesSlice";
