@@ -20,6 +20,7 @@ import {
   Carousel, CarouselContent, CarouselItem,
 } from "@/components/ui/carousel";
 import type { CarouselApi } from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
 import { BookingConfirmationDialog } from "@/components/BookingConfirmationDialog";
 import { BookingSuccessDialog } from "@/components/BookingSuccessDialog";
 import GalleryView from "@/components/GalleryView";
@@ -231,7 +232,7 @@ const ApartmentDetail = () => {
       {/* Full-bleed Hero Media */}
       <div className="relative">
         <div className="relative h-[55vw] max-h-[420px] min-h-[260px] overflow-hidden bg-muted">
-          <Carousel className="w-full h-full" setApi={setCarouselApi} opts={{ loop: true }}>
+          <Carousel className="w-full h-full" setApi={setCarouselApi} plugins={[Autoplay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })]} opts={{ loop: true }}>
             <CarouselContent className="h-full">
               {apartment.media.length > 0 ? (
                 apartment.media.map((media, index) => (

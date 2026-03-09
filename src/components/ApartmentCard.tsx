@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addFavorite, removeFavorite } from "@/store/favoritesSlice";
+import Autoplay from "embla-carousel-autoplay";
 
 import { useNavigate } from "react-router-dom";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
@@ -79,7 +80,8 @@ const ApartmentCard = ({
   return <>
       <div className={`relative w-full h-full transition-all duration-500 ease-out ${isActive ? 'scale-100 opacity-100' : 'scale-[0.97] opacity-70'}`}>
         {/* Media Carousel - Full Screen */}
-        <Carousel className="w-full h-full" opts={{
+        <Carousel className="w-full h-full" plugins={[Autoplay({ delay: 4000, stopOnInteraction: true, stopOnMouseEnter: true })]} opts={{
+        loop: true,
         dragFree: true,
         watchDrag: false
       }}>
