@@ -228,7 +228,7 @@ const ApartmentDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-56">
       {/* Full-bleed Hero Media */}
       <div className="relative">
         <div className="relative h-[55vw] max-h-[420px] min-h-[260px] overflow-hidden bg-muted">
@@ -513,7 +513,7 @@ const ApartmentDetail = () => {
       </div>
 
       {/* Fixed Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t px-5 py-4 pb-safe">
+      <div className="fixed bottom-16 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t px-5 py-4 pb-safe">
         <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
           <div>
             <div className="text-xl font-bold leading-tight">

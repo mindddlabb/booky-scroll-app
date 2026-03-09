@@ -112,8 +112,16 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      // Resolve otherUserId from state or from existing messages
+      // Resolve otherUserId from state, conversation id, or existing messages
       let resolvedId = state?.otherUserId;
+
+      if (!resolvedId && conversationId) {
+        const [firstUserId, secondUserId] = conversationId.split("_");
+        if (firstUserId && secondUserId) {
+          resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+        }
+      }
+
       if (!resolvedId && conversationId) {
         const { data: existingMsg } = await supabase
           .from("messages")
@@ -318,7 +326,7 @@ const Chat = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => navigate("/inbox")}>
@@ -347,7 +355,7 @@ const Chat = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24 space-y-1">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             Send a message to start the conversation
@@ -422,7 +430,7 @@ const Chat = () => {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-0 bg-background border-t px-4 py-3 pb-safe">
+      <div className="sticky bottom-0 z-20 bg-background border-t px-4 py-3 pb-safe">
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
           <Button variant="ghost" size="icon" className="shrink-0 rounded-full" onClick={() => fileInputRef.current?.click()} disabled={sending}>
