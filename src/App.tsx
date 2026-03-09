@@ -80,6 +80,7 @@ const AppRoutes = () => {
 
   return (
     <>
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={isAuthenticated ? <Navigate to="/home" replace /> : <Welcome />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} />
