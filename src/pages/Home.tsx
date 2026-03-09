@@ -283,13 +283,10 @@ const Home = () => {
           apartments.map((apartment, index) => (
             <div key={apartment.id} className="h-screen snap-start snap-always relative">
               <ApartmentCard apartment={apartment} isActive={true} />
+            </div>
+          ))
+        )}
       </div>
-
-      <FilterModal
-        open={filterModalOpen}
-        onOpenChange={setFilterModalOpen}
-        onApply={fetchApartments}
-      />
     </>
   );
 };
