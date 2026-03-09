@@ -4,15 +4,13 @@ import { Apartment, ExternalApartment } from "@/types";
 import ApartmentCard from "@/components/ApartmentCard";
 import ApartmentCardSkeleton from "@/components/ApartmentCardSkeleton";
 import ExternalApartmentCard from "@/components/ExternalApartmentCard";
-import { Loader2, Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { Loader2, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setFavorites } from "@/store/favoritesSlice";
 import { setSearchQuery } from "@/store/filterSlice";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import FilterModal from "@/components/FilterModal";
 import { externalApartmentsApi } from "@/lib/api/externalApartments";
 
 type MixedListing = (Apartment & { isExternal?: false }) | ExternalApartment;
@@ -24,8 +22,6 @@ const Home = () => {
   const [externalApartments, setExternalApartments] = useState<ExternalApartment[]>([]);
   const [mixedListings, setMixedListings] = useState<MixedListing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -36,15 +32,6 @@ const Home = () => {
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef(0);
   const PULL_THRESHOLD = 80;
-
-  const activeFilterCount = [
-    filters.city,
-    filters.bedrooms,
-    filters.bathrooms,
-    filters.amenities.length > 0,
-    filters.checkInDate,
-    filters.priceMin > 0 || filters.priceMax < 10000,
-  ].filter(Boolean).length;
 
   useEffect(() => {
     fetchApartments();
@@ -171,11 +158,7 @@ const Home = () => {
   }, [apartments, externalApartments]);
 
   const handleScroll = () => {
-    if (!containerRef.current) return;
-    const scrollTop = containerRef.current.scrollTop;
-    const windowHeight = window.innerHeight;
-    const newIndex = Math.round(scrollTop / windowHeight);
-    setCurrentIndex(newIndex);
+    // scroll tracking if needed
   };
 
   // Pull-to-refresh handlers
@@ -263,22 +246,6 @@ const Home = () => {
                 }}
               />
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setFilterModalOpen(true)}
-              className="relative shrink-0"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              {activeFilterCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px]"
-                >
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
           </div>
         ) : (
           <Button
@@ -308,27 +275,17 @@ const Home = () => {
         {mixedListings.length > 0 ? (
           mixedListings.map((listing, index) => (
             <div key={listing.id} className="h-screen snap-start snap-always relative">
-              {listing.isExternal ? (
-                <ExternalApartmentCard apartment={listing} isActive={index === currentIndex} />
-              ) : (
-                <ApartmentCard apartment={listing as Apartment} isActive={index === currentIndex} />
-              )}
+              <ApartmentCard apartment={listing as Apartment} isActive={true} />
             </div>
           ))
         ) : (
           apartments.map((apartment, index) => (
             <div key={apartment.id} className="h-screen snap-start snap-always relative">
-              <ApartmentCard apartment={apartment} isActive={index === currentIndex} />
+              <ApartmentCard apartment={apartment} isActive={true} />
             </div>
           ))
         )}
       </div>
-
-      <FilterModal
-        open={filterModalOpen}
-        onOpenChange={setFilterModalOpen}
-        onApply={fetchApartments}
-      />
     </>
   );
 };
