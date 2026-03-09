@@ -64,7 +64,7 @@ const BottomNav = () => {
               <div className="relative">
                 <Icon className={`w-6 h-6 ${isActive ? "fill-primary/20" : ""}`} />
                 {item.badge && item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                  <span className="absolute -top-1 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-0.5 leading-none">
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
