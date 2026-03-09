@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Send, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Send, Image as ImageIcon, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import browserImageCompression from "browser-image-compression";
 
 interface Message {
   id: string;
@@ -34,8 +35,13 @@ const Chat = () => {
   const [otherUserAvatar, setOtherUserAvatar] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const otherUserId = state?.otherUserId;
   const apartmentId = state?.apartmentId;
@@ -50,7 +56,6 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      // Fetch other user profile if we have their ID
       if (otherUserId) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -85,7 +90,6 @@ const Chat = () => {
 
     setMessages(data || []);
 
-    // Mark messages as read
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
@@ -101,7 +105,6 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Real-time subscription
   useEffect(() => {
     if (!conversationId) return;
 
@@ -122,7 +125,6 @@ const Chat = () => {
             return [...prev, newMsg];
           });
 
-          // Mark as read if we're the receiver
           if (currentUserId && newMsg.receiver_id === currentUserId) {
             supabase
               .from("messages")
@@ -138,20 +140,96 @@ const Chat = () => {
     };
   }, [conversationId, currentUserId]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      toast.error("Please select image files only");
+      return;
+    }
+
+    const total = selectedImages.length + imageFiles.length;
+    if (total > 5) {
+      toast.error("Maximum 5 images per message");
+      return;
+    }
+
+    setSelectedImages((prev) => [...prev, ...imageFiles]);
+
+    imageFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setImagePreviews((prev) => [...prev, ev.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input so same file can be selected again
+    e.target.value = "";
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async (userId: string): Promise<string[]> => {
+    const urls: string[] = [];
+
+    for (const file of selectedImages) {
+      const compressed = await browserImageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+      });
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("chat-images")
+        .upload(path, compressed, { contentType: compressed.type });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from("chat-images")
+        .getPublicUrl(path);
+
+      urls.push(urlData.publicUrl);
+    }
+
+    return urls;
+  };
+
   const handleSend = async () => {
-    if (!newMessage.trim() || !currentUserId || !otherUserId || !conversationId) return;
+    const hasText = newMessage.trim().length > 0;
+    const hasImages = selectedImages.length > 0;
+    if ((!hasText && !hasImages) || !currentUserId || !otherUserId || !conversationId) return;
 
     setSending(true);
-    const messageContent = newMessage.trim();
+    setUploading(hasImages);
+    const messageContent = newMessage.trim() || (hasImages ? "📷 Image" : "");
     setNewMessage("");
 
     try {
+      let mediaUrls: string[] | null = null;
+
+      if (hasImages) {
+        mediaUrls = await uploadImages(currentUserId);
+        setSelectedImages([]);
+        setImagePreviews([]);
+      }
+
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: currentUserId,
         receiver_id: otherUserId,
         content: messageContent,
         apartment_id: apartmentId || null,
+        media_urls: mediaUrls,
       });
 
       if (error) throw error;
@@ -160,6 +238,7 @@ const Chat = () => {
       setNewMessage(messageContent);
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -231,6 +310,7 @@ const Chat = () => {
         ) : (
           messages.map((message, index) => {
             const isMe = message.sender_id === currentUserId;
+            const hasMedia = message.media_urls && message.media_urls.length > 0;
             return (
               <div key={message.id}>
                 {shouldShowDateSeparator(index) && (
@@ -242,15 +322,39 @@ const Chat = () => {
                 )}
                 <div className={`flex ${isMe ? "justify-end" : "justify-start"} mb-1`}>
                   <div
-                    className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${
+                    className={`max-w-[75%] rounded-2xl text-sm overflow-hidden ${
                       isMe
                         ? "bg-primary text-primary-foreground rounded-br-md"
                         : "bg-muted text-foreground rounded-bl-md"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                    {/* Images */}
+                    {hasMedia && (
+                      <div className={`grid gap-0.5 ${
+                        message.media_urls!.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                      }`}>
+                        {message.media_urls!.map((url, i) => (
+                          <img
+                            key={i}
+                            src={url}
+                            alt="Shared image"
+                            className="w-full h-auto max-h-48 object-cover cursor-pointer"
+                            loading="lazy"
+                            onClick={() => setExpandedImage(url)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {/* Text content (skip if it's just the placeholder emoji) */}
+                    {message.content && message.content !== "📷 Image" && (
+                      <p className="whitespace-pre-wrap break-words px-3.5 py-2">{message.content}</p>
+                    )}
+                    {/* Only show placeholder if no images rendered */}
+                    {message.content && message.content === "📷 Image" && !hasMedia && (
+                      <p className="whitespace-pre-wrap break-words px-3.5 py-2">{message.content}</p>
+                    )}
                     <p
-                      className={`text-[10px] mt-1 ${
+                      className={`text-[10px] px-3.5 pb-1.5 ${hasMedia && (!message.content || message.content === "📷 Image") ? "pt-1" : ""} ${
                         isMe ? "text-primary-foreground/70" : "text-muted-foreground"
                       }`}
                     >
@@ -265,9 +369,49 @@ const Chat = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Image previews */}
+      {imagePreviews.length > 0 && (
+        <div className="px-4 py-2 border-t bg-background">
+          <div className="flex gap-2 overflow-x-auto">
+            {imagePreviews.map((preview, i) => (
+              <div key={i} className="relative shrink-0">
+                <img
+                  src={preview}
+                  alt={`Preview ${i + 1}`}
+                  className="w-16 h-16 rounded-lg object-cover"
+                />
+                <button
+                  onClick={() => removeImage(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="sticky bottom-0 bg-background border-t px-4 py-3 pb-safe">
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 rounded-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending}
+          >
+            <ImageIcon className="w-5 h-5 text-muted-foreground" />
+          </Button>
           <Input
             ref={inputRef}
             value={newMessage}
@@ -280,12 +424,39 @@ const Chat = () => {
             size="icon"
             className="rounded-full shrink-0"
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={(!newMessage.trim() && selectedImages.length === 0) || sending}
           >
-            <Send className="w-4 h-4" />
+            {uploading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
       </div>
+
+      {/* Expanded Image Modal */}
+      {expandedImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setExpandedImage(null)}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full"
+            onClick={() => setExpandedImage(null)}
+          >
+            <X className="w-6 h-6" />
+          </Button>
+          <img
+            src={expandedImage}
+            alt="Expanded"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
