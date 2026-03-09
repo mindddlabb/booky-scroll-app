@@ -96,7 +96,7 @@ const ApartmentCard = ({
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 pointer-events-none" />
 
         {/* Availability Dot - Top Right */}
-        <div className="absolute top-6 right-6 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full">
+        <div className="absolute top-6 right-6 pt-safe flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-2 rounded-full">
           <div className={`w-3 h-3 rounded-full ${apartment.availabilityStatus === "available" ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]" : "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"}`} />
           <span className="text-white text-xs font-medium capitalize">
             {apartment.availabilityStatus}
