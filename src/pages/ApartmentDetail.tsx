@@ -228,7 +228,7 @@ const ApartmentDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-56">
       {/* Full-bleed Hero Media */}
       <div className="relative">
         <div className="relative h-[55vw] max-h-[420px] min-h-[260px] overflow-hidden bg-muted">

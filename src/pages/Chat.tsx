@@ -112,8 +112,16 @@ const Chat = () => {
       if (!user) { navigate("/login"); return; }
       setCurrentUserId(user.id);
 
-      // Resolve otherUserId from state or from existing messages
+      // Resolve otherUserId from state, conversation id, or existing messages
       let resolvedId = state?.otherUserId;
+
+      if (!resolvedId && conversationId) {
+        const [firstUserId, secondUserId] = conversationId.split("_");
+        if (firstUserId && secondUserId) {
+          resolvedId = firstUserId === user.id ? secondUserId : firstUserId;
+        }
+      }
+
       if (!resolvedId && conversationId) {
         const { data: existingMsg } = await supabase
           .from("messages")
