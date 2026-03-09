@@ -1,14 +1,48 @@
 import { Home, Compass, Calendar, MessageCircle, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const BottomNav = () => {
   const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let userId: string | null = null;
+
+    const fetchUnread = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      userId = user.id;
+
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("read_status", false);
+
+      if (!error) setUnreadCount(count || 0);
+    };
+
+    fetchUnread();
+
+    const channel = supabase
+      .channel("unread-badge")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
+        () => { fetchUnread(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
     { icon: Compass, label: "Explore", path: "/explore" },
     { icon: Calendar, label: "Bookings", path: "/bookings" },
-    { icon: MessageCircle, label: "Inbox", path: "/inbox" },
+    { icon: MessageCircle, label: "Inbox", path: "/inbox", badge: unreadCount },
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
@@ -23,11 +57,18 @@ const BottomNav = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 transition-colors ${
+              className={`relative flex flex-col items-center justify-center gap-1 flex-1 transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <Icon className={`w-6 h-6 ${isActive ? "fill-primary/20" : ""}`} />
+              <div className="relative">
+                <Icon className={`w-6 h-6 ${isActive ? "fill-primary/20" : ""}`} />
+                {item.badge && item.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );
